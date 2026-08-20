@@ -27,8 +27,15 @@ export const SEED_PROGRAMS: Program[] = [
     capacity: 20,
     registration_note: null,
     teacher_name: "Shaykh Zakaria AbdilAziz",
-    teacher_bio: null,
+    teacher_bio:
+      "Shaykh Zakaria AbdilAziz heads Muraqabah’s academic vision and is a graduate of the distinguished Alimiyyah program at Dar al-Mustafa in Tarim, Yemen, where he spent nearly two decades immersed in the traditional curriculum.",
     teacher_photo: "/shaykh-zakaria.webp",
+    teacher_credentials: [
+      "Graduate of the Alimiyyah program at Dar al-Mustafa, Tarim, Yemen",
+      "Nearly two decades of traditional study under eminent scholars, including Habib Umar bin Hafiz",
+      "Quran memorized in seven canonical recitations",
+      "Formal authorizations (ijazat), including Hadith and Shafi’i jurisprudence",
+    ],
     status: "open",
     explore: [
       {

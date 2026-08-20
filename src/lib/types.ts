@@ -54,6 +54,7 @@ export type Program = {
   teacher_name: string | null;
   teacher_bio: string | null;
   teacher_photo: string | null;
+  teacher_credentials: string[];
   status: "draft" | "open" | "closed";
   explore: ExploreItem[];
   sessions: Session[];

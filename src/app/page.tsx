@@ -68,6 +68,11 @@ export default async function Home() {
                       <p className="mt-3 max-w-prose text-slate">
                         {program.tagline}
                       </p>
+                      {program.teacher_name ? (
+                        <p className="mt-3 font-mono text-xs text-slate">
+                          Taught by {program.teacher_name}
+                        </p>
+                      ) : null}
                       <p className="mt-5 font-mono text-[0.6875rem] tracking-[0.14em] text-madder uppercase">
                         Read the program →
                       </p>

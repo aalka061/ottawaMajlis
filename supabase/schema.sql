@@ -23,6 +23,7 @@ create table if not exists programs (
   teacher_name text,
   teacher_bio text,
   teacher_photo text,
+  teacher_credentials jsonb not null default '[]'::jsonb,
   status text not null default 'draft' check (status in ('draft', 'open', 'closed')),
   explore jsonb not null default '[]'::jsonb,
   sessions jsonb not null default '[]'::jsonb,
@@ -56,8 +57,8 @@ alter table registrations enable row level security;
 -- The dates, location, fee, and capacity are placeholders — fill them in.
 insert into programs (
   slug, title, tagline, term, lede, summary, format_note, meeting_note,
-  location, fee_note, capacity, teacher_name, teacher_photo, status, explore,
-  sessions
+  location, fee_note, capacity, teacher_name, teacher_bio, teacher_photo,
+  teacher_credentials, status, explore, sessions
 ) values (
   'mapping-the-divine',
   'Mapping the Divine',
@@ -71,7 +72,14 @@ insert into programs (
   'To be confirmed',
   20,
   'Shaykh Zakaria AbdilAziz',
+  'Shaykh Zakaria AbdilAziz heads Muraqabah’s academic vision and is a graduate of the distinguished Alimiyyah program at Dar al-Mustafa in Tarim, Yemen, where he spent nearly two decades immersed in the traditional curriculum.',
   '/shaykh-zakaria.webp',
+  '[
+    "Graduate of the Alimiyyah program at Dar al-Mustafa, Tarim, Yemen",
+    "Nearly two decades of traditional study under eminent scholars, including Habib Umar bin Hafiz",
+    "Quran memorized in seven canonical recitations",
+    "Formal authorizations (ijazat), including Hadith and Shafi’i jurisprudence"
+  ]'::jsonb,
   'open',
   '[
     {"title": "The Tools of Logic", "body": "Discover the three universal categories of reason and how they shape human understanding."},

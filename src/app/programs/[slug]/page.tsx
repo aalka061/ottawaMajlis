@@ -122,7 +122,9 @@ export default async function ProgramPage({ params }: Params) {
             <p className="rubric">Who teaches it</p>
             <div
               className={`mt-8 grid gap-6 sm:items-start ${
-                program.teacher_bio ? "sm:grid-cols-[16rem_1fr] sm:gap-8" : ""
+                program.teacher_bio || program.teacher_credentials.length > 0
+                  ? "sm:grid-cols-[16rem_1fr] sm:gap-10"
+                  : ""
               }`}
             >
               {program.teacher_photo ? (
@@ -138,7 +140,13 @@ export default async function ProgramPage({ params }: Params) {
                   />
                 </div>
               ) : null}
-              <div className={program.teacher_bio ? "sm:pt-1" : ""}>
+              <div
+                className={
+                  program.teacher_bio || program.teacher_credentials.length > 0
+                    ? "sm:pt-1"
+                    : ""
+                }
+              >
                 <h2 className="font-display text-3xl leading-tight">
                   {program.teacher_name}
                 </h2>
@@ -146,6 +154,15 @@ export default async function ProgramPage({ params }: Params) {
                   <p className="mt-4 max-w-prose text-slate">
                     {program.teacher_bio}
                   </p>
+                ) : null}
+                {program.teacher_credentials.length > 0 ? (
+                  <ul className="mt-6 max-w-prose divide-y divide-line border-y border-line">
+                    {program.teacher_credentials.map((credential) => (
+                      <li key={credential} className="py-3 text-slate">
+                        {credential}
+                      </li>
+                    ))}
+                  </ul>
                 ) : null}
               </div>
             </div>
