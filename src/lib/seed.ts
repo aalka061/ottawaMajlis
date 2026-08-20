@@ -26,6 +26,9 @@ export const SEED_PROGRAMS: Program[] = [
     fee_note: "To be confirmed",
     capacity: 20,
     registration_note: null,
+    teacher_name: "Shaykh Zakaria AbdilAziz",
+    teacher_bio: null,
+    teacher_photo: "/shaykh-zakaria.webp",
     status: "open",
     explore: [
       {

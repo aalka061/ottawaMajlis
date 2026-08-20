@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getProgram } from "@/lib/data";
@@ -115,6 +116,41 @@ export default async function ProgramPage({ params }: Params) {
             <MajlisRing capacity={program.capacity} centre="مجلس" size={280} />
           </figure>
         </section>
+
+        {program.teacher_name ? (
+          <section className="border-t border-line py-14">
+            <p className="rubric">Who teaches it</p>
+            <div
+              className={`mt-8 grid gap-6 sm:items-start ${
+                program.teacher_bio ? "sm:grid-cols-[16rem_1fr] sm:gap-8" : ""
+              }`}
+            >
+              {program.teacher_photo ? (
+                <div className="aspect-square w-full max-w-[16rem] overflow-hidden border border-line">
+                  <Image
+                    src={program.teacher_photo}
+                    alt={program.teacher_name}
+                    width={1280}
+                    height={855}
+                    sizes="(max-width: 640px) 100vw, 16rem"
+                    className="h-full w-full object-cover"
+                    priority={false}
+                  />
+                </div>
+              ) : null}
+              <div className={program.teacher_bio ? "sm:pt-1" : ""}>
+                <h2 className="font-display text-3xl leading-tight">
+                  {program.teacher_name}
+                </h2>
+                {program.teacher_bio ? (
+                  <p className="mt-4 max-w-prose text-slate">
+                    {program.teacher_bio}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {program.explore.length > 0 ? (
           <section className="border-t border-line py-14">

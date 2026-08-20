@@ -20,6 +20,9 @@ create table if not exists programs (
   fee_note text not null default '',
   capacity integer not null default 20,
   registration_note text,
+  teacher_name text,
+  teacher_bio text,
+  teacher_photo text,
   status text not null default 'draft' check (status in ('draft', 'open', 'closed')),
   explore jsonb not null default '[]'::jsonb,
   sessions jsonb not null default '[]'::jsonb,
@@ -53,7 +56,8 @@ alter table registrations enable row level security;
 -- The dates, location, fee, and capacity are placeholders — fill them in.
 insert into programs (
   slug, title, tagline, term, lede, summary, format_note, meeting_note,
-  location, fee_note, capacity, status, explore, sessions
+  location, fee_note, capacity, teacher_name, teacher_photo, status, explore,
+  sessions
 ) values (
   'mapping-the-divine',
   'Mapping the Divine',
@@ -66,6 +70,8 @@ insert into programs (
   'On Zoom, with two in-person meet-ups with the shaykh — one a month',
   'To be confirmed',
   20,
+  'Shaykh Zakaria AbdilAziz',
+  '/shaykh-zakaria.webp',
   'open',
   '[
     {"title": "The Tools of Logic", "body": "Discover the three universal categories of reason and how they shape human understanding."},

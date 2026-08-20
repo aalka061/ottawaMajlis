@@ -51,6 +51,9 @@ export type Program = {
   fee_note: string;
   capacity: number;
   registration_note: string | null;
+  teacher_name: string | null;
+  teacher_bio: string | null;
+  teacher_photo: string | null;
   status: "draft" | "open" | "closed";
   explore: ExploreItem[];
   sessions: Session[];
