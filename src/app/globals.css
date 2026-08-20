@@ -1,26 +1,160 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Palette: pale limestone ground, ink-green text, madder red rubric,
+     brass hairlines. Drawn from manuscript rubrication and carpet dyes. */
+  --color-stone: #e8eae3;
+  --color-paper: #f4f5f0;
+  --color-ink: #17211d;
+  --color-slate: #5c6862;
+  --color-madder: #9e2b2b;
+  --color-brass: #b0864c;
+  --color-line: #cfd4ca;
+
+  --font-display: var(--font-amiri), Georgia, serif;
+  --font-sans: var(--font-plex-sans), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background-color: var(--color-stone);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-madder);
+    color: var(--color-paper);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-madder);
+    outline-offset: 3px;
+  }
+
+  [lang="ar"] {
+    direction: rtl;
+    font-family: var(--font-display);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Rubric: the red marginal marker that opens a section, after the
+     manuscript convention of writing headings in red. */
+  .rubric {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-madder);
+  }
+
+  .field-label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-slate);
+  }
+
+  .field-input {
+    width: 100%;
+    border: 1px solid var(--color-line);
+    background-color: var(--color-paper);
+    padding: 0.75rem 0.875rem;
+    color: var(--color-ink);
+    font-size: 1rem;
+    transition: border-color 120ms ease;
+  }
+
+  .field-input::placeholder {
+    color: color-mix(in srgb, var(--color-slate) 60%, transparent);
+  }
+
+  .field-input:hover {
+    border-color: var(--color-brass);
+  }
+
+  .field-input:focus {
+    border-color: var(--color-madder);
+    outline: none;
+    box-shadow: inset 0 -2px 0 var(--color-madder);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid var(--color-ink);
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+    padding: 0.8125rem 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+  }
+
+  .btn:hover {
+    background-color: var(--color-madder);
+    border-color: var(--color-madder);
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-quiet {
+    background-color: transparent;
+    color: var(--color-ink);
+    border-color: var(--color-line);
+  }
+
+  .btn-quiet:hover {
+    background-color: transparent;
+    color: var(--color-madder);
+    border-color: var(--color-madder);
+  }
+}
+
+/* The majlis ring fills seat by seat, once, on load. */
+@keyframes seat-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.seat {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: seat-in 420ms cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seat {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }

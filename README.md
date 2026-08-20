@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ottawa Majlis
 
-## Getting Started
+Registration site for Ottawa Majlis programs. People read the
+program, register their interest, and you follow up to arrange payment. Once
+their e-transfer arrives you mark them a paid member in the admin register.
 
-First, run the development server:
+Running cost: **$0/year**, plus a domain if you want one (~$12–15/year).
+
+## What is in it
+
+| Page | What it does |
+| --- | --- |
+| `/` | Ottawa Majlis, and the programs currently open |
+| `/programs/[slug]` | The full program, and the interest form |
+| `/admin` | The register: everyone who signed up, their status, your notes, CSV export |
+| `/admin/login` | One shared password |
+
+A registration moves through five states: **interested** (they submitted the
+form) → **contacted** (you emailed them the e-transfer details) → **paid —
+member**. Two others are there when you need them: **waitlist** and
+**withdrawn**.
+
+How many people have registered is **never shown publicly** — an empty count
+puts people off, and yours would lag reality anyway since payment arrives weeks
+after interest. The circle on the public pages draws `capacity`, which is the
+size of the group, not the number of sign-ups. The real numbers are in
+`/admin`.
+
+## Running it locally
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in the values below
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Without Supabase keys the site still runs on the placeholder program in
+`src/lib/seed.ts` — useful for editing copy — but the form cannot save anyone.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Setting up the database (once, free)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Create a project at [supabase.com](https://supabase.com) — the free tier is
+   enough for thousands of registrations.
+2. Open the SQL editor, paste in `supabase/schema.sql`, run it. That creates
+   both tables and inserts the first program.
+3. Project settings → API. Copy the **Project URL** and the **service_role**
+   key into `.env.local`:
 
-## Learn More
+```
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+ADMIN_PASSWORD=pick-something-long
+ADMIN_SESSION_SECRET=paste-output-of-openssl-rand-hex-32
+```
 
-To learn more about Next.js, take a look at the following resources:
+The service role key bypasses row level security, so it stays on the server —
+never put it in a `NEXT_PUBLIC_` variable and never commit `.env.local`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Putting it online (free)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Push this repository to GitHub.
+2. Import it at [vercel.com](https://vercel.com) — the Hobby plan is free and
+   fits this site comfortably.
+3. Add the same four environment variables in the Vercel project settings.
+4. Deploy. You get `something.vercel.app` for free; point your own domain at it
+   later from the same screen if you buy one.
 
-## Deploy on Vercel
+## Editing the program
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Everything a visitor reads lives in the `programs` row — edit it in the
+Supabase table editor. The fields that matter:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `status` — `draft` hides it, `open` shows it and accepts registrations,
+  `closed` keeps the page up but stops the form.
+- `term` — the small red line above the title, e.g. "Eight weeks · sixteen
+  sessions".
+- `lede` — the opening question, set large under the title.
+- `format_note`, `meeting_note`, `location`, `fee_note` — the four rows in
+  "The details", shown as written.
+- `capacity` — the size of the group. This is what the circle draws; it is
+  not a count of registrations.
+- `explore` — a JSON array of `{"title": "...", "body": "..."}` for the "What
+  we will explore" section.
+- `sessions` — a JSON array of `{"title": "...", "note": "..."}`, one per
+  session, in order. Add `"part": "Weeks 3–4"` to a session to start a new
+  part there, and `"part_title": "..."` to give that part a name.
+
+To add a second program, insert another row with a new `slug`. It appears on
+the home page automatically.
+
+## Taking payment
+
+Deliberately not built in. Interac e-transfer costs you nothing, where Stripe
+would take about 3% of every fee, and you are already emailing each person
+before they pay. When their transfer lands, set their status to **Paid —
+member**.
+
+If you later want cards, the place to add it is a "pay now" link in that email
+rather than a checkout on this site.
