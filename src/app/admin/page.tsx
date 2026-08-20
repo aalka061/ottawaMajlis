@@ -4,6 +4,7 @@ import { isSignedIn } from "@/lib/auth";
 import { getPrograms, listRegistrations } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { STATUS_LABEL, STATUS_ORDER, type RegistrationStatus } from "@/lib/types";
+import { whatsappLink } from "@/lib/phone";
 import { removeRegistration, signOut, updateRegistration } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -125,7 +126,19 @@ export default async function AdminPage({ searchParams }: Params) {
                   >
                     {r.email}
                   </a>
-                  {r.phone ? <span className="text-slate"> · {r.phone}</span> : null}
+                  {r.phone ? (
+                    <>
+                      <span className="text-slate"> · </span>
+                      <a
+                        href={whatsappLink(r.phone)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline decoration-brass underline-offset-4 hover:text-madder"
+                      >
+                        {r.phone}
+                      </a>
+                    </>
+                  ) : null}
                 </p>
                 <p className="mt-2 font-mono text-xs text-slate">
                   {programTitle.get(r.program_id) ?? "Unknown program"} ·

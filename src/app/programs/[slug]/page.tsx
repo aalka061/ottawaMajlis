@@ -24,8 +24,8 @@ const STEPS = [
     body: "The form below. It takes a minute and costs nothing.",
   },
   {
-    title: "We write to you",
-    body: "Within a few days: the schedule, the Zoom link, whether you are joining a group or taking it 1-on-1, and the e-transfer details for the fee.",
+    title: "We message you",
+    body: "On WhatsApp within a few days: the schedule, the Zoom link, whether you are joining a group or taking it 1-on-1, and the e-transfer details for the fee.",
   },
   {
     title: "Your place is held",

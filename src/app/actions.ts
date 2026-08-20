@@ -3,6 +3,7 @@
 import { createRegistration } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import type { FormState } from "@/lib/form-state";
+import { isValidPhone } from "@/lib/phone";
 
 function text(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -32,6 +33,12 @@ export async function registerInterest(
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     fieldErrors.email = "That email address looks incomplete.";
   }
+  if (!phone) {
+    fieldErrors.phone = "We need a WhatsApp number to reach you.";
+  } else if (!isValidPhone(phone)) {
+    fieldErrors.phone =
+      "That number looks incomplete. Ten digits for Canada, or start with + and your country code.";
+  }
   if (Object.keys(fieldErrors).length > 0) {
     return { status: "error", message: "", fieldErrors };
   }
@@ -50,7 +57,7 @@ export async function registerInterest(
       program_id: programId,
       full_name: fullName,
       email: email.toLowerCase(),
-      phone: phone || null,
+      phone,
       heard_from: heardFrom || null,
       note: note || null,
     });

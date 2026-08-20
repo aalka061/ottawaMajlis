@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { registerInterest } from "@/app/actions";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
+import { formatPhone } from "@/lib/phone";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -27,6 +28,7 @@ export function InterestForm({
   programTitle: string;
 }) {
   const [state, action] = useActionState(registerInterest, EMPTY_FORM_STATE);
+  const [phone, setPhone] = useState("");
 
   if (state.status === "ok") {
     return (
@@ -37,7 +39,7 @@ export function InterestForm({
         </h3>
         <p className="mt-4 max-w-prose text-slate">
           {state.message ||
-            "Someone from Ottawa Majlis will email you within a few days with the schedule, the Zoom link, and how to send the fee by Interac e-transfer. Your place is held once that payment arrives."}
+            "Someone from Ottawa Majlis will message you on WhatsApp within a few days with the schedule, the Zoom link, and how to send the fee by Interac e-transfer. Your place is held once that payment arrives."}
         </p>
       </div>
     );
@@ -86,16 +88,26 @@ export function InterestForm({
 
         <div>
           <label className="field-label" htmlFor="phone">
-            Phone <span className="normal-case">(optional)</span>
+            WhatsApp number
           </label>
           <input
             id="phone"
             name="phone"
             type="tel"
+            inputMode="tel"
             className="field-input mt-2"
             autoComplete="tel"
-            placeholder="613 555 0134"
+            placeholder="(613) 555-0134"
+            value={phone}
+            onChange={(e) => setPhone(formatPhone(e.target.value))}
+            aria-describedby="phone-hint"
+            required
           />
+          <p id="phone-hint" className="mt-1.5 text-sm text-slate">
+            This is how we reach you. Outside Canada, start with + and your
+            country code.
+          </p>
+          <FieldError message={state.fieldErrors.phone} />
         </div>
 
         <div className="sm:col-span-2">
