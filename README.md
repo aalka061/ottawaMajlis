@@ -12,13 +12,17 @@ Running cost: **$0/year**, plus a domain if you want one (~$12–15/year).
 | --- | --- |
 | `/` | Ottawa Majlis, and the programs currently open |
 | `/programs/[slug]` | The full program, and the interest form |
-| `/admin` | The register: everyone who signed up, their status, your notes, CSV export |
+| `/admin` | The register: everyone who signed up, their status, your notes, CSV export, delete |
 | `/admin/login` | One shared password |
 
 A registration moves through five states: **interested** (they submitted the
 form) → **contacted** (you emailed them the e-transfer details) → **paid —
 member**. Two others are there when you need them: **waitlist** and
 **withdrawn**.
+
+Deleting a registration erases it for good and asks you to confirm first.
+Withdrawn is the better choice for someone who simply dropped out — it keeps
+the record. Delete is for spam and test rows.
 
 How many people have registered is **never shown publicly** — an empty count
 puts people off, and yours would lag reality anyway since payment arrives weeks

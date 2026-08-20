@@ -4,7 +4,7 @@ import { isSignedIn } from "@/lib/auth";
 import { getPrograms, listRegistrations } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { STATUS_LABEL, STATUS_ORDER, type RegistrationStatus } from "@/lib/types";
-import { signOut, updateRegistration } from "./actions";
+import { removeRegistration, signOut, updateRegistration } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +24,14 @@ function formatDate(iso: string) {
   });
 }
 
-export default async function AdminPage() {
+type Params = {
+  searchParams: Promise<{ confirm_delete?: string }>;
+};
+
+export default async function AdminPage({ searchParams }: Params) {
   if (!(await isSignedIn())) redirect("/admin/login");
+
+  const { confirm_delete: confirmDelete } = await searchParams;
 
   if (!isSupabaseConfigured) {
     return (
@@ -96,7 +102,11 @@ export default async function AdminPage() {
       ) : (
         <ul className="mt-12 divide-y divide-line border-y border-line">
           {registrations.map((r) => (
-            <li key={r.id} className="grid gap-6 py-7 md:grid-cols-[1.1fr_0.9fr]">
+            <li
+              key={r.id}
+              id={`r-${r.id}`}
+              className="grid gap-6 py-7 md:grid-cols-[1.1fr_0.9fr]"
+            >
               <div>
                 <div className="flex flex-wrap items-baseline gap-3">
                   <h2 className="font-display text-2xl leading-none">
@@ -129,41 +139,73 @@ export default async function AdminPage() {
                 ) : null}
               </div>
 
-              <form action={updateRegistration} className="grid gap-3">
-                <input type="hidden" name="id" value={r.id} />
-                <div>
-                  <label className="field-label" htmlFor={`status-${r.id}`}>
-                    Status
-                  </label>
-                  <select
-                    id={`status-${r.id}`}
-                    name="status"
-                    defaultValue={r.status}
-                    className="field-input mt-2"
-                  >
-                    {STATUS_ORDER.map((status) => (
-                      <option key={status} value={status}>
-                        {STATUS_LABEL[status]}
-                      </option>
-                    ))}
-                  </select>
+              {confirmDelete === r.id ? (
+                <div className="border border-madder bg-paper p-5">
+                  <p className="font-display text-xl leading-snug">
+                    Delete {r.full_name} permanently?
+                  </p>
+                  <p className="mt-2 max-w-prose text-sm text-slate">
+                    This erases their name, email, phone, and every note on
+                    them. It cannot be undone. If they simply dropped out, set
+                    their status to Withdrawn instead — that keeps the record.
+                  </p>
+                  <div className="mt-5 flex flex-wrap items-center gap-3">
+                    <form action={removeRegistration}>
+                      <input type="hidden" name="id" value={r.id} />
+                      <button type="submit" className="btn btn-danger">
+                        Delete permanently
+                      </button>
+                    </form>
+                    <Link href="/admin" className="btn btn-quiet">
+                      Keep
+                    </Link>
+                  </div>
                 </div>
-                <div>
-                  <label className="field-label" htmlFor={`note-${r.id}`}>
-                    Your note
-                  </label>
-                  <input
-                    id={`note-${r.id}`}
-                    name="admin_note"
-                    defaultValue={r.admin_note ?? ""}
-                    className="field-input mt-2"
-                    placeholder="e-transfer received 12 Jan"
-                  />
-                </div>
-                <button type="submit" className="btn btn-quiet justify-self-start">
-                  Save
-                </button>
-              </form>
+              ) : (
+                <form action={updateRegistration} className="grid gap-3">
+                  <input type="hidden" name="id" value={r.id} />
+                  <div>
+                    <label className="field-label" htmlFor={`status-${r.id}`}>
+                      Status
+                    </label>
+                    <select
+                      id={`status-${r.id}`}
+                      name="status"
+                      defaultValue={r.status}
+                      className="field-input mt-2"
+                    >
+                      {STATUS_ORDER.map((status) => (
+                        <option key={status} value={status}>
+                          {STATUS_LABEL[status]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor={`note-${r.id}`}>
+                      Your note
+                    </label>
+                    <input
+                      id={`note-${r.id}`}
+                      name="admin_note"
+                      defaultValue={r.admin_note ?? ""}
+                      className="field-input mt-2"
+                      placeholder="e-transfer received 12 Jan"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-5">
+                    <button type="submit" className="btn btn-quiet">
+                      Save
+                    </button>
+                    <Link
+                      href={`/admin?confirm_delete=${r.id}#r-${r.id}`}
+                      className="font-mono text-[0.6875rem] tracking-[0.14em] text-slate uppercase hover:text-madder"
+                    >
+                      Delete
+                    </Link>
+                  </div>
+                </form>
+              )}
             </li>
           ))}
         </ul>

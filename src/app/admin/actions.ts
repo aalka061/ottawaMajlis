@@ -8,7 +8,11 @@ import {
   passwordIsCorrect,
   startSession,
 } from "@/lib/auth";
-import { setAdminNote, setRegistrationStatus } from "@/lib/data";
+import {
+  deleteRegistration,
+  setAdminNote,
+  setRegistrationStatus,
+} from "@/lib/data";
 import { STATUS_ORDER, type RegistrationStatus } from "@/lib/types";
 
 export async function signIn(_prev: string, formData: FormData) {
@@ -41,4 +45,15 @@ export async function updateRegistration(formData: FormData) {
   }
   await setAdminNote(id, note);
   revalidatePath("/admin");
+}
+
+export async function removeRegistration(formData: FormData) {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  await deleteRegistration(id);
+  revalidatePath("/admin");
+  redirect("/admin");
 }

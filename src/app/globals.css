@@ -158,3 +158,16 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+@layer components {
+  .btn-danger {
+    background-color: var(--color-madder);
+    border-color: var(--color-madder);
+    color: var(--color-paper);
+  }
+
+  .btn-danger:hover {
+    background-color: var(--color-ink);
+    border-color: var(--color-ink);
+  }
+}

@@ -77,3 +77,8 @@ export async function setAdminNote(id: string, admin_note: string) {
     .eq("id", id);
   if (error) throw new Error(error.message);
 }
+
+export async function deleteRegistration(id: string) {
+  const { error } = await supabase().from("registrations").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
