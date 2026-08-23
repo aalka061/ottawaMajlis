@@ -73,7 +73,7 @@ insert into programs (
   '2 months · 16 sessions · 1.5 hours each · 24 hours in total · taken 1-on-1 or in a group',
   'Mid-September to mid-November 2026 · two sessions a week · days and times to be confirmed',
   'Online, plus one in-person session per month',
-  '$50 a month minimum, by e-transfer — donate more if you want',
+  '$50 a month minimum, by e-transfer — contribute more to support the teaching',
   20,
   'Shaykh Zakaria AbdilAziz',
   'Shaykh Zakaria AbdilAziz heads Muraqabah’s academic vision and is a graduate of the distinguished Alimiyyah program at Dar al-Mustafa in Tarim, Yemen, where he spent nearly two decades immersed in the traditional curriculum.',
