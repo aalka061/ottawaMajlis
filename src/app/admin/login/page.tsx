@@ -9,7 +9,7 @@ export default async function LoginPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
-      <p className="rubric">Ottawa Majlis</p>
+      <p className="rubric">Ottawa Majless</p>
       <h1 className="mt-4 font-display text-4xl leading-tight">
         Sign in to the register.
       </h1>

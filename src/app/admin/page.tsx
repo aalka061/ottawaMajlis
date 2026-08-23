@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isSignedIn } from "@/lib/auth";
-import { getPrograms, listRegistrations } from "@/lib/data";
+import { listPrograms, listRegistrations } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { STATUS_LABEL, STATUS_ORDER, type RegistrationStatus } from "@/lib/types";
 import { whatsappLink } from "@/lib/phone";
@@ -15,6 +15,12 @@ const STATUS_TONE: Record<RegistrationStatus, string> = {
   confirmed: "border-madder bg-madder text-paper",
   waitlist: "border-slate text-slate",
   withdrawn: "border-line text-slate line-through",
+};
+
+const PROGRAM_STATE: Record<"draft" | "open" | "closed", string> = {
+  draft: "Draft — off the site",
+  open: "Open — taking registrations",
+  closed: "Closed — not taking registrations",
 };
 
 function formatDate(iso: string) {
@@ -56,7 +62,7 @@ export default async function AdminPage({ searchParams }: Params) {
 
   const [registrations, programs] = await Promise.all([
     listRegistrations(),
-    getPrograms(),
+    listPrograms(),
   ]);
   const programTitle = new Map(programs.map((p) => [p.id, p.title]));
 
@@ -69,7 +75,7 @@ export default async function AdminPage({ searchParams }: Params) {
     <main className="mx-auto max-w-5xl px-6 py-12">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
         <div>
-          <p className="rubric">Ottawa Majlis</p>
+          <p className="rubric">Ottawa Majless</p>
           <h1 className="mt-3 font-display text-4xl leading-tight">
             The register
           </h1>
@@ -86,7 +92,31 @@ export default async function AdminPage({ searchParams }: Params) {
         </div>
       </div>
 
-      <dl className="mt-10 grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-5">
+      <section className="mt-10 border-y border-line">
+        <p className="rubric py-5">The programs</p>
+        <ul className="divide-y divide-line border-t border-line">
+          {programs.map((p) => (
+            <li
+              key={p.id}
+              className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 py-5"
+            >
+              <div>
+                <h2 className="font-display text-2xl leading-none">
+                  {p.title}
+                </h2>
+                <p className="mt-2 font-mono text-xs text-slate">
+                  {PROGRAM_STATE[p.status]} · fee: {p.fee_note || "not set"}
+                </p>
+              </div>
+              <Link href={`/admin/programs/${p.id}`} className="btn btn-quiet">
+                Edit the program
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <dl className="mt-12 grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-5">
         {counts.map(({ status, count }) => (
           <div key={status} className="bg-paper px-4 py-5">
             <dt className="field-label">{STATUS_LABEL[status]}</dt>

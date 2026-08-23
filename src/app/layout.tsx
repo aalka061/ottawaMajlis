@@ -25,11 +25,11 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Ottawa Majlis — classical texts, read closely",
-    template: "%s — Ottawa Majlis",
+    default: "Ottawa Majless — classical texts, read closely",
+    template: "%s — Ottawa Majless",
   },
   description:
-    "Ottawa Majlis runs small programs where a classical text is read closely and argued with. See what is running and register your interest.",
+    "Ottawa Majless runs small programs where a classical text is read closely and argued with. Read the program and register.",
 };
 
 export default function RootLayout({

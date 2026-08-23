@@ -13,8 +13,13 @@ export const STATUS_ORDER: RegistrationStatus[] = [
   "withdrawn",
 ];
 
+/**
+ * What each state is called everywhere a person reads it. `interested` is the
+ * value the database has always stored for a fresh sign-up; nobody registers
+ * their interest any more, they register, so it reads as "Registered".
+ */
 export const STATUS_LABEL: Record<RegistrationStatus, string> = {
-  interested: "Interested",
+  interested: "Registered",
   contacted: "Contacted",
   confirmed: "Paid — member",
   waitlist: "Waitlist",
@@ -45,6 +50,8 @@ export type Program = {
   /** The question the program opens with, set large above the summary. */
   lede: string | null;
   summary: string;
+  /** The text being read, shown as the first row of the details. */
+  book_note: string;
   format_note: string;
   meeting_note: string;
   location: string;
@@ -54,6 +61,8 @@ export type Program = {
   teacher_name: string | null;
   teacher_bio: string | null;
   teacher_photo: string | null;
+  /** Where the teacher’s own work lives, linked from their name. */
+  teacher_url: string | null;
   teacher_credentials: string[];
   status: "draft" | "open" | "closed";
   explore: ExploreItem[];

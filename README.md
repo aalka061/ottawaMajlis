@@ -1,8 +1,9 @@
-# Ottawa Majlis
+# Ottawa Majless
 
-Registration site for Ottawa Majlis programs. People read the
-program, register their interest, and you follow up to arrange payment. Once
-their e-transfer arrives you mark them a paid member in the admin register.
+Registration site for an Ottawa Majless program. The site is a single page
+about whichever program is running: people read it, register, and you follow up
+to arrange payment. Once their e-transfer arrives you mark them a paid member
+in the admin register.
 
 Running cost: **$0/year**, plus a domain if you want one (~$12–15/year).
 
@@ -10,15 +11,16 @@ Running cost: **$0/year**, plus a domain if you want one (~$12–15/year).
 
 | Page | What it does |
 | --- | --- |
-| `/` | Ottawa Majlis, and the programs currently open |
-| `/programs/[slug]` | The full program, and the interest form |
+| `/` | The whole site: the open program, end to end, with the registration form |
+| `/programs/[slug]` | The same page for a program that is not the open one — a draft, or one that has closed. Kept out of search results; it is there so you can read a program before you open it |
 | `/admin` | The register: everyone who signed up, their status, your notes, CSV export, delete |
 | `/admin/login` | One shared password |
 
-A registration moves through five states: **interested** (they submitted the
+A registration moves through five states: **registered** (they submitted the
 form) → **contacted** (you emailed them the e-transfer details) → **paid —
 member**. Two others are there when you need them: **waitlist** and
-**withdrawn**.
+**withdrawn**. The database still stores the first one under its old name,
+`interested`; everything you read says Registered.
 
 Deleting a registration erases it for good and asks you to confirm first.
 Withdrawn is the better choice for someone who simply dropped out — it keeps
@@ -26,8 +28,8 @@ the record. Delete is for spam and test rows.
 
 How many people have registered is **never shown publicly** — an empty count
 puts people off, and yours would lag reality anyway since payment arrives weeks
-after interest. The circle on the public pages draws `capacity`, which is the
-size of the group, not the number of sign-ups. The real numbers are in
+after someone signs up. The circle on the page draws `capacity`, which is the
+size of the group, not the number of registrations. The real numbers are in
 `/admin`.
 
 ## Running it locally
@@ -74,13 +76,14 @@ never put it in a `NEXT_PUBLIC_` variable and never commit `.env.local`.
 Everything a visitor reads lives in the `programs` row — edit it in the
 Supabase table editor. The fields that matter:
 
-- `status` — `draft` hides it, `open` shows it and accepts registrations,
-  `closed` keeps the page up but stops the form.
+- `status` — `open` puts the program on the front page and accepts
+  registrations, `closed` keeps the page up but stops the form, `draft` keeps
+  it off the site entirely.
 - `term` — the small red line above the title, e.g. "Eight weeks · sixteen
   sessions".
 - `lede` — the opening question, set large under the title.
-- `format_note`, `meeting_note`, `location`, `fee_note` — the four rows in
-  "The details", shown as written.
+- `format_note`, `meeting_note`, `location`, `fee_note` — the four rows
+  beside the summary in "The course", shown as written.
 - `capacity` — the size of the group. This is what the circle draws; it is
   not a count of registrations.
 - `explore` — a JSON array of `{"title": "...", "body": "..."}` for the "What
@@ -89,15 +92,16 @@ Supabase table editor. The fields that matter:
   session, in order. Add `"part": "Weeks 3–4"` to a session to start a new
   part there, and `"part_title": "..."` to give that part a name.
 
-To add a second program, insert another row with a new `slug`. It appears on
-the home page automatically.
+The front page shows whichever program is `open` — the most recently created
+one, if somehow two are. Adding a row is how you set up the next term: leave it
+`draft` while you write it, then open it when the current one closes.
 
 ## Taking payment
 
 Deliberately not built in. Interac e-transfer costs you nothing, where Stripe
-would take about 3% of every fee, and you are already emailing each person
+would take about 3% of every fee, and you are already messaging each person
 before they pay. When their transfer lands, set their status to **Paid —
 member**.
 
-If you later want cards, the place to add it is a "pay now" link in that email
-rather than a checkout on this site.
+If you later want cards, the place to add it is a "pay now" link in the message
+you send them, rather than a checkout on this site.

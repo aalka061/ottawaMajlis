@@ -10,7 +10,7 @@ function text(formData: FormData, key: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-export async function registerInterest(
+export async function register(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
@@ -65,7 +65,7 @@ export async function registerInterest(
       status: "ok",
       message:
         result === "duplicate"
-          ? "You are already on the list for this program — no need to register twice."
+          ? "You are already registered for this program — no need to do it twice."
           : "",
       fieldErrors: {},
     };

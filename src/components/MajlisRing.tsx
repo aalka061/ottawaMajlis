@@ -1,5 +1,5 @@
 type Props = {
-  /** How many people sit in the circle. Drawn as one mark each. */
+  /** Internal target for the size of the circle. Drawn as one mark each. */
   capacity: number;
   /** Word set at the centre of the circle, where the teacher sits. */
   centre?: string;
@@ -7,8 +7,9 @@ type Props = {
 };
 
 /**
- * The majlis drawn as what it is: a circle of places. It shows the size of
- * the group, never who has registered — those numbers stay in the admin
+ * The majlis drawn as what it is: a circle of places. The count of marks is
+ * only a drawing — it is never stated as a limit, and neither the target nor
+ * who has registered is shown to visitors. Those numbers stay in the admin
  * register.
  */
 export function MajlisRing({ capacity, centre = "مجلس", size = 340 }: Props) {
@@ -32,7 +33,7 @@ export function MajlisRing({ capacity, centre = "مجلس", size = 340 }: Props)
       width="100%"
       height="100%"
       role="img"
-      aria-label={`A circle of ${seats} places`}
+      aria-label="The majlis drawn as a circle of places"
       className="max-w-[340px]"
     >
       {points.map((p, i) => (

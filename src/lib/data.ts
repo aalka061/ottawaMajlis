@@ -29,6 +29,71 @@ export async function getProgram(slug: string): Promise<Program | null> {
   return (data as Program) ?? null;
 }
 
+/**
+ * The one program the site is about: whatever is open, and if nothing is,
+ * the most recent one so its closing note is still readable.
+ */
+export async function getFeaturedProgram(): Promise<Program | null> {
+  const programs = await getPrograms();
+  return programs.find((p) => p.status === "open") ?? programs[0] ?? null;
+}
+
+/** Every program, drafts included. For the admin register only. */
+export async function listPrograms(): Promise<Program[]> {
+  if (!isSupabaseConfigured) return SEED_PROGRAMS;
+  const { data, error } = await supabase()
+    .from("programs")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Program[];
+}
+
+export async function getProgramById(id: string): Promise<Program | null> {
+  if (!isSupabaseConfigured) {
+    return SEED_PROGRAMS.find((p) => p.id === id) ?? null;
+  }
+  const { data, error } = await supabase()
+    .from("programs")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as Program) ?? null;
+}
+
+/**
+ * The fields the register can edit. The slug is left out on purpose — it is
+ * the address of the page — and so are the three list fields (credentials,
+ * explore, sessions), which are edited in Supabase.
+ */
+export type ProgramEdit = Pick<
+  Program,
+  | "title"
+  | "title_ar"
+  | "tagline"
+  | "term"
+  | "lede"
+  | "summary"
+  | "book_note"
+  | "format_note"
+  | "meeting_note"
+  | "location"
+  | "fee_note"
+  | "capacity"
+  | "registration_note"
+  | "teacher_name"
+  | "teacher_bio"
+  | "teacher_photo"
+  | "teacher_url"
+  | "status"
+>;
+
+export async function setProgramFields(id: string, fields: ProgramEdit) {
+  const { error } = await supabase().from("programs").update(fields).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
 export type NewRegistration = {
   program_id: string;
   full_name: string;

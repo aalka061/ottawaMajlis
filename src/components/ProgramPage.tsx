@@ -1,0 +1,331 @@
+import Image from "next/image";
+import { MajlisRing } from "@/components/MajlisRing";
+import { RegisterForm } from "@/components/RegisterForm";
+import { SiteHeader, type NavLink } from "@/components/SiteChrome";
+import type { Program, Session } from "@/lib/types";
+
+const STEPS = [
+  {
+    title: "Register",
+    body: "The form below — your name, an email, and a WhatsApp number. Nothing is due at that point.",
+  },
+  {
+    title: "We message you",
+    body: "On WhatsApp within a few days: the schedule, the Zoom link, whether you are joining a group or taking it 1-on-1, and the e-transfer details for the fee.",
+  },
+  {
+    title: "Your place is held",
+    body: "Once the first month's fee arrives you are a member of the cohort, and the place is yours for as long as you are with us.",
+  },
+];
+
+type Group = {
+  part: string;
+  partTitle?: string;
+  items: { number: number; session: Session }[];
+};
+
+/** "https://www.muraqabah.ca/" reads as "muraqabah.ca" on the page. */
+function siteLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+/** Sessions carry the part label that opens their group; fold them into it. */
+function groupSessions(sessions: Session[]): Group[] {
+  const groups: Group[] = [];
+  sessions.forEach((session, i) => {
+    if (session.part || groups.length === 0) {
+      groups.push({
+        part: session.part ?? "",
+        partTitle: session.part_title,
+        items: [],
+      });
+    }
+    groups[groups.length - 1].items.push({ number: i + 1, session });
+  });
+  return groups;
+}
+
+/**
+ * The whole site, as one page about one program. Ottawa Majless is the house
+ * the program is held in, so it stays in the margins: the mark in the header,
+ * one section near the end, the footer.
+ */
+export function ProgramPage({ program }: { program: Program }) {
+  const open = program.status === "open";
+  const groups = groupSessions(program.sessions);
+  const hasTeacherDetail =
+    Boolean(program.teacher_bio) ||
+    Boolean(program.teacher_url) ||
+    program.teacher_credentials.length > 0;
+
+  const links: NavLink[] = [
+    { href: "#course", label: "The course" },
+    ...(program.teacher_name
+      ? [{ href: "#teacher", label: "Who teaches" }]
+      : []),
+    { href: "#sessions", label: "Sessions" },
+    ...(open ? [{ href: "#register", label: "Register" }] : []),
+  ];
+
+  return (
+    <>
+      <SiteHeader links={links} />
+      <main className="mx-auto max-w-5xl px-6">
+        <section className="grid gap-12 py-14 sm:py-20 md:grid-cols-[1.15fr_0.85fr] md:items-center">
+          <div>
+            <p className="rubric">{program.term}</p>
+            <h1 className="mt-5 font-display text-[clamp(2.5rem,6vw,4.25rem)] leading-[1.05]">
+              {program.title}
+            </h1>
+            {program.title_ar ? (
+              <p className="mt-3 text-3xl text-brass">
+                <span lang="ar">{program.title_ar}</span>
+              </p>
+            ) : null}
+            <p className="mt-6 max-w-2xl text-xl text-slate">{program.tagline}</p>
+            {program.teacher_name ? (
+              <p className="mt-5 font-mono text-xs tracking-[0.08em] text-slate">
+                Taught by {program.teacher_name}
+              </p>
+            ) : null}
+            {open ? (
+              <p className="mt-9">
+                <a href="#register" className="btn">
+                  Register for the course
+                </a>
+              </p>
+            ) : null}
+          </div>
+
+          <figure className="flex flex-col items-center md:justify-self-end">
+            <MajlisRing capacity={program.capacity} centre="مجلس" size={280} />
+          </figure>
+        </section>
+
+        {program.lede ? (
+          <section className="border-y border-line py-12">
+            <p className="max-w-3xl font-display text-[clamp(1.5rem,3vw,2.25rem)] leading-[1.35]">
+              {program.lede}
+            </p>
+          </section>
+        ) : null}
+
+        <section id="course" className="scroll-mt-24 py-14">
+          <p className="rubric">The course</p>
+          <div className="mt-8 grid gap-12 md:grid-cols-[1.1fr_0.9fr]">
+            <p className="max-w-prose text-lg leading-relaxed">
+              {program.summary}
+            </p>
+            <div>
+              <dl className="divide-y divide-line border-y border-line">
+                {[
+                  ["Book", program.book_note],
+                  ["Format", program.format_note],
+                  ["When", program.meeting_note],
+                  ["Where", program.location],
+                  ["Fee", program.fee_note],
+                ]
+                  .filter(([, value]) => value)
+                  .map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="grid gap-1 py-4 sm:grid-cols-[5rem_1fr]"
+                    >
+                      <dt className="field-label pt-1">{label}</dt>
+                      <dd className="text-ink">{value}</dd>
+                    </div>
+                  ))}
+              </dl>
+            </div>
+          </div>
+        </section>
+
+        {program.explore.length > 0 ? (
+          <section className="border-t border-line py-14">
+            <p className="rubric">What we will explore</p>
+            <div className="mt-8 grid gap-x-12 gap-y-10 sm:grid-cols-2">
+              {program.explore.map((item) => (
+                <div key={item.title}>
+                  <h2 className="font-display text-2xl leading-snug">
+                    {item.title}
+                  </h2>
+                  <p className="mt-2 max-w-prose text-slate">{item.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {program.teacher_name ? (
+          <section id="teacher" className="scroll-mt-24 border-t border-line py-14">
+            <p className="rubric">Who teaches it</p>
+            <div
+              className={`mt-8 grid gap-6 sm:items-start ${
+                hasTeacherDetail ? "sm:grid-cols-[16rem_1fr] sm:gap-10" : ""
+              }`}
+            >
+              {program.teacher_photo ? (
+                <div className="aspect-square w-full max-w-[16rem] overflow-hidden border border-line">
+                  <Image
+                    src={program.teacher_photo}
+                    alt={program.teacher_name}
+                    width={1280}
+                    height={855}
+                    sizes="(max-width: 640px) 100vw, 16rem"
+                    className="h-full w-full object-cover"
+                    priority={false}
+                  />
+                </div>
+              ) : null}
+              <div className={hasTeacherDetail ? "sm:pt-1" : ""}>
+                <h2 className="font-display text-3xl leading-tight">
+                  {program.teacher_name}
+                </h2>
+                {program.teacher_bio ? (
+                  <p className="mt-4 max-w-prose text-slate">
+                    {program.teacher_bio}
+                  </p>
+                ) : null}
+                {program.teacher_url ? (
+                  <p className="mt-4">
+                    <a
+                      href={program.teacher_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-mono text-[0.6875rem] tracking-[0.14em] text-madder uppercase hover:text-ink"
+                    >
+                      {siteLabel(program.teacher_url)} →
+                    </a>
+                  </p>
+                ) : null}
+                {program.teacher_credentials.length > 0 ? (
+                  <ul className="mt-6 max-w-prose divide-y divide-line border-y border-line">
+                    {program.teacher_credentials.map((credential) => (
+                      <li key={credential} className="py-3 text-slate">
+                        {credential}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        <section id="sessions" className="scroll-mt-24 border-t border-line py-14">
+          <p className="rubric">The {program.sessions.length} sessions</p>
+          <div className="mt-8 border-t border-line">
+            {groups.map((group) => (
+              <div
+                key={group.part || "part"}
+                className="grid gap-y-2 py-6 sm:grid-cols-[9rem_1fr]"
+              >
+                <div className="sm:pt-4">
+                  <p className="font-mono text-[0.6875rem] tracking-[0.14em] text-madder uppercase">
+                    {group.part}
+                  </p>
+                  {group.partTitle ? (
+                    <p className="mt-2 max-w-[8rem] font-display text-lg leading-snug text-slate">
+                      {group.partTitle}
+                    </p>
+                  ) : null}
+                </div>
+                <ol className="divide-y divide-line border-y border-line">
+                  {group.items.map(({ number, session }) => (
+                    <li
+                      key={number}
+                      className="grid gap-1 py-4 sm:grid-cols-[3rem_1fr] sm:items-baseline"
+                    >
+                      <span className="font-mono text-sm text-brass">
+                        {String(number).padStart(2, "0")}
+                      </span>
+                      <span>
+                        <span className="font-display text-2xl leading-snug">
+                          {session.title}
+                        </span>
+                        {session.note ? (
+                          <span className="ml-3 text-slate">— {session.note}</span>
+                        ) : null}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="border-t border-line py-14">
+          <p className="rubric">The room it is read in</p>
+          <div className="mt-8 grid gap-10 md:grid-cols-3">
+            <div>
+              <h2 className="font-display text-2xl">How we read</h2>
+              <p className="mt-3 text-slate">
+                A few pages a session, read aloud and taken apart. Nobody is
+                expected to have read ahead, and the questions matter more than
+                the notes.
+              </p>
+            </div>
+            <div>
+              <h2 className="font-display text-2xl">Who comes</h2>
+              <p className="mt-3 text-slate">
+                People from across Ottawa, most with no formal study behind them.
+                Come as you are; ask the question you think everyone else already
+                knows the answer to.
+              </p>
+            </div>
+            <div>
+              <h2 className="font-display text-2xl">Who runs it</h2>
+              <p className="mt-3 text-slate">
+                Ottawa Majless, a small volunteer-run circle that studies a
+                classical text a few pages at a time — closer to a seminar than a
+                lecture. This program is what it is running now.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="register" className="scroll-mt-24 border-t border-line py-14">
+          <p className="rubric">Joining</p>
+          <h2 className="mt-4 max-w-2xl font-display text-4xl leading-tight">
+            {open
+              ? "Registering takes a minute. Here is the whole of it."
+              : "Registration is closed."}
+          </h2>
+
+          {open ? (
+            <>
+              <ol className="mt-10 grid gap-8 sm:grid-cols-3">
+                {STEPS.map((step, i) => (
+                  <li key={step.title}>
+                    <span className="font-mono text-sm text-brass">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <h3 className="mt-2 font-display text-2xl leading-snug">
+                      {step.title}
+                    </h3>
+                    <p className="mt-2 text-slate">{step.body}</p>
+                  </li>
+                ))}
+              </ol>
+
+              <div className="mt-14">
+                <RegisterForm programId={program.id} programTitle={program.title} />
+              </div>
+            </>
+          ) : (
+            <p className="mt-4 max-w-prose text-slate">
+              {program.registration_note ??
+                "This course is no longer taking registrations. Write to ottawamajless@gmail.com to hear about the next cohort."}
+            </p>
+          )}
+        </section>
+      </main>
+    </>
+  );
+}

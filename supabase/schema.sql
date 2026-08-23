@@ -1,4 +1,4 @@
--- Ottawa Majlis — run this once in the Supabase SQL editor.
+-- Ottawa Majless — run this once in the Supabase SQL editor.
 -- Row level security is on with no public policies, so the anon key can read
 -- nothing. The app talks to these tables with the service role key from the
 -- server only.
@@ -14,6 +14,7 @@ create table if not exists programs (
   term text not null default '',
   lede text,
   summary text not null default '',
+  book_note text not null default '',
   format_note text not null default '',
   meeting_note text not null default '',
   location text not null default '',
@@ -23,6 +24,7 @@ create table if not exists programs (
   teacher_name text,
   teacher_bio text,
   teacher_photo text,
+  teacher_url text,
   teacher_credentials jsonb not null default '[]'::jsonb,
   status text not null default 'draft' check (status in ('draft', 'open', 'closed')),
   explore jsonb not null default '[]'::jsonb,
@@ -54,30 +56,32 @@ alter table programs enable row level security;
 alter table registrations enable row level security;
 
 -- Mapping the Divine. Edit the text here or in the Supabase table editor.
--- The dates, location, fee, and capacity are placeholders — fill them in.
+-- The dates and location are placeholders — fill them in. Capacity is an
+-- internal target only; the site never shows it and registration stays open.
 insert into programs (
-  slug, title, tagline, term, lede, summary, format_note, meeting_note,
+  slug, title, tagline, term, lede, summary, book_note, format_note, meeting_note,
   location, fee_note, capacity, teacher_name, teacher_bio, teacher_photo,
-  teacher_credentials, status, explore, sessions
+  teacher_url, teacher_credentials, status, explore, sessions
 ) values (
   'mapping-the-divine',
   'Mapping the Divine',
   'An 8-week journey into classical logic and sacred thought',
   'Starts mid-September 2026',
   'Have you ever wondered how classical thinkers reasoned through life''s deepest questions? How do we talk about existence, purpose, and reality using pure logic, without relying strictly on dogma?',
-  'Mapping the Divine is a 1-on-1 and group interactive course designed for anyone curious about the bridge between intellect and spirituality. Over eight weeks we work through the classical text known as The Mother of Proofs, a timeless masterpiece that uses formal logic to investigate the Divine and the human condition. Whether you are seeking to deepen your personal faith, explore classical philosophy, or simply engage with an ancient rational tradition in an open, welcoming environment, this workshop offers a space for meaningful conversation and critical inquiry.',
+  'Mapping the Divine is a 1-on-1 and group interactive course designed for anyone curious about the bridge between intellect and spirituality. Over eight weeks we work through al-‘Aqida al-Sanusiyya al-Sughra — the short creed of Imam Muhammad ibn Yusuf al-Sanusi, known everywhere as Umm al-Barahin, the Mother of Proofs — a timeless masterpiece that uses formal logic to investigate the Divine and the human condition. Whether you are seeking to deepen your personal faith, explore classical philosophy, or simply engage with an ancient rational tradition in an open, welcoming environment, this workshop offers a space for meaningful conversation and critical inquiry.',
+  'al-‘Aqida al-Sanusiyya al-Sughra by Imam al-Sanusi — known as Umm al-Barahin, the Mother of Proofs',
   '2 months · 16 sessions · 1.5 hours each · 24 hours in total · taken 1-on-1 or in a group',
   'Mid-September to mid-November 2026 · two sessions a week · days and times to be confirmed',
-  'On Zoom, with two in-person meet-ups with the shaykh — one a month',
-  'To be confirmed',
+  'Online, plus one in-person session per month',
+  '$80 a month minimum, by e-transfer — give more if you can',
   20,
   'Shaykh Zakaria AbdilAziz',
   'Shaykh Zakaria AbdilAziz heads Muraqabah’s academic vision and is a graduate of the distinguished Alimiyyah program at Dar al-Mustafa in Tarim, Yemen, where he spent nearly two decades immersed in the traditional curriculum.',
   '/shaykh-zakaria.webp',
+  'https://www.muraqabah.ca/',
   '[
     "Graduate of the Alimiyyah program at Dar al-Mustafa, Tarim, Yemen",
     "Nearly two decades of traditional study under eminent scholars, including Habib Umar bin Hafiz",
-    "Quran memorized in seven canonical recitations",
     "Formal authorizations (ijazat), including Hadith and Shafi’i jurisprudence"
   ]'::jsonb,
   'open',

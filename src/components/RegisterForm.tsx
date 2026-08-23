@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { registerInterest } from "@/app/actions";
+import { register } from "@/app/actions";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
 import { formatPhone } from "@/lib/phone";
 
@@ -10,7 +10,7 @@ function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <button type="submit" className="btn" disabled={pending}>
-      {pending ? "Sending…" : "Register interest"}
+      {pending ? "Registering…" : "Register"}
     </button>
   );
 }
@@ -20,14 +20,14 @@ function FieldError({ message }: { message?: string }) {
   return <p className="mt-1.5 text-sm text-madder">{message}</p>;
 }
 
-export function InterestForm({
+export function RegisterForm({
   programId,
   programTitle,
 }: {
   programId: string;
   programTitle: string;
 }) {
-  const [state, action] = useActionState(registerInterest, EMPTY_FORM_STATE);
+  const [state, action] = useActionState(register, EMPTY_FORM_STATE);
   const [phone, setPhone] = useState("");
 
   if (state.status === "ok") {
@@ -35,11 +35,11 @@ export function InterestForm({
       <div className="border border-brass bg-paper p-8">
         <p className="rubric">Registered</p>
         <h3 className="mt-3 font-display text-3xl leading-tight">
-          You are on the list for {programTitle}.
+          You are registered for {programTitle}.
         </h3>
         <p className="mt-4 max-w-prose text-slate">
           {state.message ||
-            "Someone from Ottawa Majlis will message you on WhatsApp within a few days with the schedule, the Zoom link, and how to send the fee by Interac e-transfer. Your place is held once that payment arrives."}
+            "Someone from Ottawa Majless will message you on WhatsApp within a few days with the schedule, the Zoom link, and how to send the fee by Interac e-transfer. Your place is held once that payment arrives."}
         </p>
       </div>
     );

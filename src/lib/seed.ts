@@ -16,24 +16,28 @@ export const SEED_PROGRAMS: Program[] = [
     term: "Starts mid-September 2026",
     lede: "Have you ever wondered how classical thinkers reasoned through life's deepest questions? How do we talk about existence, purpose, and reality using pure logic, without relying strictly on dogma?",
     summary:
-      "Mapping the Divine is a 1-on-1 and group interactive course designed for anyone curious about the bridge between intellect and spirituality. Over eight weeks we work through the classical text known as The Mother of Proofs, a timeless masterpiece that uses formal logic to investigate the Divine and the human condition. Whether you are seeking to deepen your personal faith, explore classical philosophy, or simply engage with an ancient rational tradition in an open, welcoming environment, this workshop offers a space for meaningful conversation and critical inquiry.",
+      "Mapping the Divine is a 1-on-1 and group interactive course designed for anyone curious about the bridge between intellect and spirituality. Over eight weeks we work through al-‘Aqida al-Sanusiyya al-Sughra — the short creed of Imam Muhammad ibn Yusuf al-Sanusi, known everywhere as Umm al-Barahin, the Mother of Proofs — a timeless masterpiece that uses formal logic to investigate the Divine and the human condition. Whether you are seeking to deepen your personal faith, explore classical philosophy, or simply engage with an ancient rational tradition in an open, welcoming environment, this workshop offers a space for meaningful conversation and critical inquiry.",
+    book_note:
+      "al-‘Aqida al-Sanusiyya al-Sughra by Imam al-Sanusi — known as Umm al-Barahin, the Mother of Proofs",
     format_note:
       "2 months · 16 sessions · 1.5 hours each · 24 hours in total · taken 1-on-1 or in a group",
     meeting_note:
       "Mid-September to mid-November 2026 · two sessions a week · days and times to be confirmed",
     location:
-      "On Zoom, with two in-person meet-ups with the shaykh — one a month",
-    fee_note: "To be confirmed",
+      "Online, plus one in-person session per month",
+    fee_note: "$80 a month minimum, by e-transfer — give more if you can",
+    // An internal target for the size of the circle. Never shown to visitors:
+    // registration stays open past it.
     capacity: 20,
     registration_note: null,
     teacher_name: "Shaykh Zakaria AbdilAziz",
     teacher_bio:
       "Shaykh Zakaria AbdilAziz heads Muraqabah’s academic vision and is a graduate of the distinguished Alimiyyah program at Dar al-Mustafa in Tarim, Yemen, where he spent nearly two decades immersed in the traditional curriculum.",
     teacher_photo: "/shaykh-zakaria.webp",
+    teacher_url: "https://www.muraqabah.ca/",
     teacher_credentials: [
       "Graduate of the Alimiyyah program at Dar al-Mustafa, Tarim, Yemen",
       "Nearly two decades of traditional study under eminent scholars, including Habib Umar bin Hafiz",
-      "Quran memorized in seven canonical recitations",
       "Formal authorizations (ijazat), including Hadith and Shafi’i jurisprudence",
     ],
     status: "open",
