@@ -25,7 +25,7 @@ export const SEED_PROGRAMS: Program[] = [
       "Mid-September to mid-November 2026 · two sessions a week · days and times to be confirmed",
     location:
       "Online, plus one in-person session per month",
-    fee_note: "$80 a month minimum, by e-transfer — give more if you can",
+    fee_note: "$50 a month minimum, by e-transfer — donate more if you want",
     // An internal target for the size of the circle. Never shown to visitors:
     // registration stays open past it.
     capacity: 20,
