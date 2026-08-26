@@ -23,7 +23,7 @@ export const SEED_PROGRAMS: Program[] = [
     meeting_note:
       "Mid-September to mid-November 2026 · two sessions a week · days and times to be confirmed",
     location: "Online, plus one in-person session per month",
-    fee_note: "$75 a month, or $150 for the whole course (2 months)",
+    fee_note: "$150 for the whole course (2 months)",
     // An internal target for the size of the circle. Never shown to visitors:
     // registration stays open past it.
     capacity: 20,

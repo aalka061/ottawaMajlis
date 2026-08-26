@@ -169,7 +169,7 @@ export function ProgramForm({ program }: { program: Program }) {
         <Field
           name="fee_note"
           label="Fee"
-          hint="Written out as visitors should read it, minimum and all."
+          hint='The amount only, e.g. $150 for the whole course (2 months). The page supplies "by Interac e-transfer to…" around it, so leave the method out.'
         >
           <input
             id="fee_note"
