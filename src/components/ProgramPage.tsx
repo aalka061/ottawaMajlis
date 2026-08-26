@@ -6,6 +6,20 @@ import { CONTACT_EMAIL, ETRANSFER_EMAIL } from "@/lib/site";
 import type { Program, Session } from "@/lib/types";
 
 /**
+ * The one thing said about the size of the group, in the three places a
+ * visitor meets it: beside the circle, among the facts of the course, and at
+ * the moment they decide. Deliberately no number — the circle is a target we
+ * have registered past before, and naming a count would make it a promise.
+ * How many people have registered is still never shown.
+ */
+const SCARCITY = {
+  ring: "Places are limited",
+  detail: "Limited — the circle closes when they are taken",
+  joining:
+    "Places are limited, and it is the e-transfer that holds one — earlier is safer than later.",
+};
+
+/**
  * Two steps, not three. Payment is what holds the place, so there is no round
  * of messages in the middle asking for it. Step two carries the amount and the
  * address outright — that is everything someone needs to decide, and it saves
@@ -112,6 +126,11 @@ export function ProgramPage({ program }: { program: Program }) {
 
           <figure className="flex flex-col items-center md:justify-self-end">
             <MajlisRing capacity={program.capacity} centre="مجلس" size={280} />
+            {open ? (
+              <figcaption className="mt-5 font-mono text-[0.6875rem] tracking-[0.14em] text-madder uppercase">
+                {SCARCITY.ring}
+              </figcaption>
+            ) : null}
           </figure>
         </section>
 
@@ -137,6 +156,7 @@ export function ProgramPage({ program }: { program: Program }) {
                   ["When", program.meeting_note],
                   ["Where", program.location],
                   ["Fee", program.fee_note],
+                  ...(open ? [["Places", SCARCITY.detail]] : []),
                 ]
                   .filter(([, value]) => value)
                   .map(([label, value]) => (
@@ -319,6 +339,10 @@ export function ProgramPage({ program }: { program: Program }) {
 
           {open ? (
             <>
+              <p className="mt-4 max-w-2xl text-lg text-slate">
+                {SCARCITY.joining}
+              </p>
+
               <ol className="mt-10 grid gap-8 sm:grid-cols-2">
                 {steps(program).map((step, i) => (
                   <li key={step.title}>
