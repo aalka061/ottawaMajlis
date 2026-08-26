@@ -1,7 +1,7 @@
 import { isSignedIn } from "@/lib/auth";
 import { getPrograms, listRegistrations } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { STATUS_LABEL } from "@/lib/types";
+import { statusLabel } from "@/lib/types";
 
 function cell(value: string | null) {
   const text = value ?? "";
@@ -39,7 +39,7 @@ export async function GET() {
       r.email,
       r.phone,
       titles.get(r.program_id) ?? r.program_id,
-      STATUS_LABEL[r.status],
+      statusLabel(r.status),
       r.heard_from,
       r.note,
       r.admin_note,

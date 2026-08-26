@@ -4,6 +4,7 @@ import { createRegistration } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import type { FormState } from "@/lib/form-state";
 import { isValidPhone } from "@/lib/phone";
+import { CONTACT_EMAIL } from "@/lib/site";
 
 function text(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -65,15 +66,14 @@ export async function register(
       status: "ok",
       message:
         result === "duplicate"
-          ? "You are already registered for this program — no need to do it twice."
+          ? "You are already registered for this program — no need to do it twice. If the e-transfer has not gone out yet, that is the step that holds your place."
           : "",
       fieldErrors: {},
     };
   } catch {
     return {
       status: "error",
-      message:
-        "Something went wrong on our side and your registration was not saved. Try again, or email ottawamajless@gmail.com.",
+      message: `Something went wrong on our side and your registration was not saved. Try again, or email ${CONTACT_EMAIL}.`,
       fieldErrors: {},
     };
   }

@@ -40,8 +40,10 @@ create table if not exists registrations (
   phone text,
   heard_from text,
   note text,
+  -- Two live states: they have registered, and they have paid. Payment is what
+  -- holds a place, so there is nothing in between.
   status text not null default 'interested'
-    check (status in ('interested', 'contacted', 'confirmed', 'waitlist', 'withdrawn')),
+    check (status in ('interested', 'confirmed', 'waitlist', 'withdrawn')),
   admin_note text,
   created_at timestamptz not null default now()
 );

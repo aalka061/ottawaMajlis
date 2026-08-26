@@ -180,8 +180,8 @@ export function ProgramForm({ program }: { program: Program }) {
         </Field>
         <Field
           name="registration_note"
-          label="Note above the form"
-          hint="Optional. Shown where people register."
+          label="Note when registration is closed"
+          hint="Optional. Replaces the form once the status is Closed — say when the next cohort opens."
         >
           <textarea
             id="registration_note"

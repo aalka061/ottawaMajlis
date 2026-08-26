@@ -2,22 +2,28 @@ import Image from "next/image";
 import { MajlisRing } from "@/components/MajlisRing";
 import { RegisterForm } from "@/components/RegisterForm";
 import { SiteHeader, type NavLink } from "@/components/SiteChrome";
+import { CONTACT_EMAIL, ETRANSFER_EMAIL } from "@/lib/site";
 import type { Program, Session } from "@/lib/types";
 
-const STEPS = [
-  {
-    title: "Register",
-    body: "The form below — your name, an email, and a WhatsApp number. Nothing is due at that point.",
-  },
-  {
-    title: "We message you",
-    body: "On WhatsApp within a few days: the schedule, the Zoom link, whether you are joining a group or taking it 1-on-1, and the e-transfer details for the fee.",
-  },
-  {
-    title: "Your place is held",
-    body: "Once the first month's fee arrives you are a member of the cohort, and the place is yours for as long as you are with us.",
-  },
-];
+/**
+ * Two steps, not three. Payment is what holds the place, so there is no round
+ * of messages in the middle asking for it. Step two carries the amount and the
+ * address outright — that is everything someone needs to decide, and it saves
+ * repeating the full e-transfer panel above a form they have not filled yet.
+ */
+function steps(program: Program) {
+  const fee = program.fee_note ? `${program.fee_note}, by` : "The fee, by";
+  return [
+    {
+      title: "Register",
+      body: "The form below — your name, an email, and a WhatsApp number. It takes a minute and tells us who the transfer belongs to.",
+    },
+    {
+      title: "Send the e-transfer",
+      body: `${fee} Interac e-transfer to ${ETRANSFER_EMAIL}. That is what holds your place: the moment it arrives you are a member of the cohort.`,
+    },
+  ];
+}
 
 type Group = {
   part: string;
@@ -87,7 +93,9 @@ export function ProgramPage({ program }: { program: Program }) {
                 <span lang="ar">{program.title_ar}</span>
               </p>
             ) : null}
-            <p className="mt-6 max-w-2xl text-xl text-slate">{program.tagline}</p>
+            <p className="mt-6 max-w-2xl text-xl text-slate">
+              {program.tagline}
+            </p>
             {program.teacher_name ? (
               <p className="mt-5 font-mono text-xs tracking-[0.08em] text-slate">
                 Taught by {program.teacher_name}
@@ -162,7 +170,10 @@ export function ProgramPage({ program }: { program: Program }) {
         ) : null}
 
         {program.teacher_name ? (
-          <section id="teacher" className="scroll-mt-24 border-t border-line py-14">
+          <section
+            id="teacher"
+            className="scroll-mt-24 border-t border-line py-14"
+          >
             <p className="rubric">Who teaches it</p>
             <div
               className={`mt-8 grid gap-6 sm:items-start ${
@@ -217,7 +228,10 @@ export function ProgramPage({ program }: { program: Program }) {
           </section>
         ) : null}
 
-        <section id="sessions" className="scroll-mt-24 border-t border-line py-14">
+        <section
+          id="sessions"
+          className="scroll-mt-24 border-t border-line py-14"
+        >
           <p className="rubric">The {program.sessions.length} sessions</p>
           <div className="mt-8 border-t border-line">
             {groups.map((group) => (
@@ -249,7 +263,9 @@ export function ProgramPage({ program }: { program: Program }) {
                           {session.title}
                         </span>
                         {session.note ? (
-                          <span className="ml-3 text-slate">— {session.note}</span>
+                          <span className="ml-3 text-slate">
+                            — {session.note}
+                          </span>
                         ) : null}
                       </span>
                     </li>
@@ -274,34 +290,37 @@ export function ProgramPage({ program }: { program: Program }) {
             <div>
               <h2 className="font-display text-2xl">Who comes</h2>
               <p className="mt-3 text-slate">
-                People from across Ottawa, most with no formal study behind them.
-                Come as you are; ask the question you think everyone else already
-                knows the answer to.
+                People from across Ottawa, most with no formal study behind
+                them. Come as you are; ask the question you think everyone else
+                already knows the answer to.
               </p>
             </div>
             <div>
               <h2 className="font-display text-2xl">Who runs it</h2>
               <p className="mt-3 text-slate">
                 Ottawa Majless, a small volunteer-run circle that studies a
-                classical text a few pages at a time — closer to a seminar than a
-                lecture. This program is what it is running now.
+                classical text a few pages at a time — closer to a seminar than
+                a lecture. This program is what it is running now.
               </p>
             </div>
           </div>
         </section>
 
-        <section id="register" className="scroll-mt-24 border-t border-line py-14">
+        <section
+          id="register"
+          className="scroll-mt-24 border-t border-line py-14"
+        >
           <p className="rubric">Joining</p>
           <h2 className="mt-4 max-w-2xl font-display text-4xl leading-tight">
             {open
-              ? "Registering takes a minute. Here is the whole of it."
+              ? "Two steps, and the place is yours."
               : "Registration is closed."}
           </h2>
 
           {open ? (
             <>
-              <ol className="mt-10 grid gap-8 sm:grid-cols-3">
-                {STEPS.map((step, i) => (
+              <ol className="mt-10 grid gap-8 sm:grid-cols-2">
+                {steps(program).map((step, i) => (
                   <li key={step.title}>
                     <span className="font-mono text-sm text-brass">
                       {String(i + 1).padStart(2, "0")}
@@ -314,14 +333,18 @@ export function ProgramPage({ program }: { program: Program }) {
                 ))}
               </ol>
 
-              <div className="mt-14">
-                <RegisterForm programId={program.id} programTitle={program.title} />
+              <div className="mt-12">
+                <RegisterForm
+                  programId={program.id}
+                  programTitle={program.title}
+                  feeNote={program.fee_note}
+                />
               </div>
             </>
           ) : (
             <p className="mt-4 max-w-prose text-slate">
               {program.registration_note ??
-                "This course is no longer taking registrations. Write to ottawamajless@gmail.com to hear about the next cohort."}
+                `This course is no longer taking registrations. Write to ${CONTACT_EMAIL} to hear about the next cohort.`}
             </p>
           )}
         </section>

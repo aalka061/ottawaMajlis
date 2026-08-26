@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { register } from "@/app/actions";
+import { PaymentPanel } from "@/components/PaymentPanel";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
 import { formatPhone } from "@/lib/phone";
 
@@ -23,24 +24,29 @@ function FieldError({ message }: { message?: string }) {
 export function RegisterForm({
   programId,
   programTitle,
+  feeNote,
 }: {
   programId: string;
   programTitle: string;
+  feeNote: string;
 }) {
   const [state, action] = useActionState(register, EMPTY_FORM_STATE);
   const [phone, setPhone] = useState("");
 
   if (state.status === "ok") {
     return (
-      <div className="border border-brass bg-paper p-8">
+      <div className="max-w-xl">
         <p className="rubric">Registered</p>
         <h3 className="mt-3 font-display text-3xl leading-tight">
-          You are registered for {programTitle}.
+          We have your details for {programTitle}. One step left.
         </h3>
         <p className="mt-4 max-w-prose text-slate">
           {state.message ||
-            "Someone from Ottawa Majless will message you on WhatsApp within a few days with the schedule, the Zoom link, and how to send the fee by Interac e-transfer. Your place is held once that payment arrives."}
+            "Send the fee by Interac e-transfer and the place is yours. Registering does not hold it — the transfer does."}
         </p>
+        <div className="mt-7">
+          <PaymentPanel feeNote={feeNote} />
+        </div>
       </div>
     );
   }
@@ -112,7 +118,8 @@ export function RegisterForm({
 
         <div className="sm:col-span-2">
           <label className="field-label" htmlFor="heard_from">
-            How did you hear about the majlis? <span className="normal-case">(optional)</span>
+            How did you hear about the majlis?{" "}
+            <span className="normal-case">(optional)</span>
           </label>
           <input
             id="heard_from"
@@ -124,7 +131,8 @@ export function RegisterForm({
 
         <div className="sm:col-span-2">
           <label className="field-label" htmlFor="note">
-            Anything we should know? <span className="normal-case">(optional)</span>
+            Anything we should know?{" "}
+            <span className="normal-case">(optional)</span>
           </label>
           <textarea
             id="note"
@@ -145,7 +153,7 @@ export function RegisterForm({
       <div className="mt-7 flex flex-wrap items-center gap-4">
         <SubmitButton />
         <p className="font-mono text-[0.6875rem] tracking-[0.14em] text-slate uppercase">
-          No payment now
+          Then send the e-transfer
         </p>
       </div>
     </form>

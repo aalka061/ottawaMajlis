@@ -3,7 +3,12 @@ import { redirect } from "next/navigation";
 import { isSignedIn } from "@/lib/auth";
 import { listPrograms, listRegistrations } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { STATUS_LABEL, STATUS_ORDER, type RegistrationStatus } from "@/lib/types";
+import {
+  STATUS_LABEL,
+  STATUS_ORDER,
+  statusLabel,
+  type RegistrationStatus,
+} from "@/lib/types";
 import { whatsappLink } from "@/lib/phone";
 import { removeRegistration, signOut, updateRegistration } from "./actions";
 
@@ -11,11 +16,15 @@ export const dynamic = "force-dynamic";
 
 const STATUS_TONE: Record<RegistrationStatus, string> = {
   interested: "border-brass text-brass",
-  contacted: "border-slate text-slate",
   confirmed: "border-madder bg-madder text-paper",
   waitlist: "border-slate text-slate",
   withdrawn: "border-line text-slate line-through",
 };
+
+/** A retired status still in the table reads as an unpaid registration. */
+function statusTone(status: RegistrationStatus) {
+  return STATUS_TONE[status] ?? STATUS_TONE.interested;
+}
 
 const PROGRAM_STATE: Record<"draft" | "open" | "closed", string> = {
   draft: "Draft — off the site",
@@ -116,7 +125,7 @@ export default async function AdminPage({ searchParams }: Params) {
         </ul>
       </section>
 
-      <dl className="mt-12 grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-5">
+      <dl className="mt-12 grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-4">
         {counts.map(({ status, count }) => (
           <div key={status} className="bg-paper px-4 py-5">
             <dt className="field-label">{STATUS_LABEL[status]}</dt>
@@ -144,9 +153,9 @@ export default async function AdminPage({ searchParams }: Params) {
                     {r.full_name}
                   </h2>
                   <span
-                    className={`border px-2 py-0.5 font-mono text-[0.625rem] tracking-[0.14em] uppercase ${STATUS_TONE[r.status]}`}
+                    className={`border px-2 py-0.5 font-mono text-[0.625rem] tracking-[0.14em] uppercase ${statusTone(r.status)}`}
                   >
-                    {STATUS_LABEL[r.status]}
+                    {statusLabel(r.status)}
                   </span>
                 </div>
                 <p className="mt-3 font-mono text-sm">
@@ -214,7 +223,11 @@ export default async function AdminPage({ searchParams }: Params) {
                     <select
                       id={`status-${r.id}`}
                       name="status"
-                      defaultValue={r.status}
+                      defaultValue={
+                        STATUS_ORDER.includes(r.status)
+                          ? r.status
+                          : "interested"
+                      }
                       className="field-input mt-2"
                     >
                       {STATUS_ORDER.map((status) => (
@@ -233,7 +246,7 @@ export default async function AdminPage({ searchParams }: Params) {
                       name="admin_note"
                       defaultValue={r.admin_note ?? ""}
                       className="field-input mt-2"
-                      placeholder="e-transfer received 12 Jan"
+                      placeholder="e-transfer received 12 Jan, $150 for the term"
                     />
                   </div>
                   <div className="flex flex-wrap items-center gap-5">

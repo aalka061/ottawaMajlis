@@ -1,9 +1,10 @@
 # Ottawa Majless
 
 Registration site for an Ottawa Majless program. The site is a single page
-about whichever program is running: people read it, register, and you follow up
-to arrange payment. Once their e-transfer arrives you mark them a paid member
-in the admin register.
+about whichever program is running: people read it, register, and send the fee
+by Interac e-transfer. **The payment is the reservation** — there is no round of
+messages in between asking for it. When their transfer arrives you mark them
+paid in the admin register.
 
 Running cost: **$0/year**, plus a domain if you want one (~$12–15/year).
 
@@ -16,11 +17,16 @@ Running cost: **$0/year**, plus a domain if you want one (~$12–15/year).
 | `/admin` | The register: everyone who signed up, their status, your notes, CSV export, delete |
 | `/admin/login` | One shared password |
 
-A registration moves through five states: **registered** (they submitted the
-form) → **contacted** (you emailed them the e-transfer details) → **paid —
-member**. Two others are there when you need them: **waitlist** and
-**withdrawn**. The database still stores the first one under its old name,
-`interested`; everything you read says Registered.
+A registration has two live states: **registered — unpaid** (they submitted the
+form) → **paid — place held** (their e-transfer arrived). Two others are there
+when you need them: **waitlist** and **withdrawn**. The database still stores
+the first one under its old name, `interested`.
+
+There used to be a **contacted** state in the middle, from when you messaged
+people to ask for the fee. It is gone: the page tells people where to send the
+e-transfer at the moment they register, so the only thing left to record is
+whether the money arrived. `supabase/migrations/0004_payment_confirms.sql`
+folds any old `contacted` rows back into registered.
 
 Deleting a registration erases it for good and asks you to confirm first.
 Withdrawn is the better choice for someone who simply dropped out — it keeps
@@ -48,7 +54,8 @@ Without Supabase keys the site still runs on the placeholder program in
 1. Create a project at [supabase.com](https://supabase.com) — the free tier is
    enough for thousands of registrations.
 2. Open the SQL editor, paste in `supabase/schema.sql`, run it. That creates
-   both tables and inserts the first program.
+   both tables and inserts the first program. An existing database instead gets
+   the files in `supabase/migrations/`, in order, once each.
 3. Project settings → API. Copy the **Project URL** and the **service_role**
    key into `.env.local`:
 
@@ -98,10 +105,17 @@ one, if somehow two are. Adding a row is how you set up the next term: leave it
 
 ## Taking payment
 
-Deliberately not built in. Interac e-transfer costs you nothing, where Stripe
-would take about 3% of every fee, and you are already messaging each person
-before they pay. When their transfer lands, set their status to **Paid —
-member**.
+Interac e-transfer to `ottawamajless@gmail.com`, and nothing else. It costs you
+nothing, where Stripe would take about 3% of every fee.
 
-If you later want cards, the place to add it is a "pay now" link in the message
-you send them, rather than a checkout on this site.
+The address lives in one place, `src/lib/site.ts`, and is written into the
+registration steps, the panel beside the form, and the confirmation someone
+sees after they submit. Change it there and it changes everywhere. Turn on
+autodeposit for that inbox so nobody has to guess a security question.
+
+People are asked to put their full name in the transfer message, which is how
+you match a transfer to a row. When it lands, set their status to **Paid —
+place held**.
+
+If you later want cards, the place to add it is a checkout beside the
+e-transfer panel in `src/components/PaymentPanel.tsx`.

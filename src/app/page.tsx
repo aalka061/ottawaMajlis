@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getFeaturedProgram } from "@/lib/data";
 import { ProgramPage } from "@/components/ProgramPage";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
+import { CONTACT_EMAIL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +34,9 @@ export default async function Home() {
               to{" "}
               <a
                 className="text-ink underline decoration-brass underline-offset-4 hover:text-madder"
-                href="mailto:ottawamajless@gmail.com"
+                href={`mailto:${CONTACT_EMAIL}`}
               >
-                ottawamajless@gmail.com
+                {CONTACT_EMAIL}
               </a>{" "}
               and we will let you know when it opens.
             </p>

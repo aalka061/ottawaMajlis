@@ -1,13 +1,8 @@
 export type RegistrationStatus =
-  | "interested"
-  | "contacted"
-  | "confirmed"
-  | "waitlist"
-  | "withdrawn";
+  "interested" | "confirmed" | "waitlist" | "withdrawn";
 
 export const STATUS_ORDER: RegistrationStatus[] = [
   "interested",
-  "contacted",
   "confirmed",
   "waitlist",
   "withdrawn",
@@ -16,15 +11,22 @@ export const STATUS_ORDER: RegistrationStatus[] = [
 /**
  * What each state is called everywhere a person reads it. `interested` is the
  * value the database has always stored for a fresh sign-up; nobody registers
- * their interest any more, they register, so it reads as "Registered".
+ * their interest any more, they register and then pay, so it reads as
+ * "Registered — unpaid". There used to be a `contacted` state between the two,
+ * from when we messaged people to ask for the fee; `0004_payment_confirms.sql`
+ * folds any of those rows back into `interested`.
  */
 export const STATUS_LABEL: Record<RegistrationStatus, string> = {
-  interested: "Registered",
-  contacted: "Contacted",
-  confirmed: "Paid — member",
+  interested: "Registered — unpaid",
+  confirmed: "Paid — place held",
   waitlist: "Waitlist",
   withdrawn: "Withdrawn",
 };
+
+/** Tolerates a row written before a status was retired. */
+export function statusLabel(status: string): string {
+  return STATUS_LABEL[status as RegistrationStatus] ?? "Registered — unpaid";
+}
 
 export type Session = {
   title: string;

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CONTACT_EMAIL } from "@/lib/site";
 
 export type NavLink = { href: string; label: string };
 
@@ -48,9 +49,9 @@ export function SiteFooter() {
           Held by Ottawa Majless, a small volunteer-run circle. Write to us at{" "}
           <a
             className="text-ink underline decoration-brass underline-offset-4 hover:text-madder"
-            href="mailto:ottawamajless@gmail.com"
+            href={`mailto:${CONTACT_EMAIL}`}
           >
-            ottawamajless@gmail.com
+            {CONTACT_EMAIL}
           </a>
           .
         </p>
