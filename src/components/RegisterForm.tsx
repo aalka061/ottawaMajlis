@@ -125,7 +125,7 @@ export function RegisterForm({
             id="heard_from"
             name="heard_from"
             className="field-input mt-2"
-            placeholder="A friend, the masjid, Instagram…"
+            placeholder="Our WhatsApp group, another WhatsApp group, a friend…"
           />
         </div>
 
