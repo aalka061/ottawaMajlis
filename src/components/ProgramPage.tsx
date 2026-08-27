@@ -30,7 +30,7 @@ function steps(program: Program) {
   return [
     {
       title: "Register",
-      body: "The form below — your name, an email, and a WhatsApp number. It takes a minute and tells us who the transfer belongs to.",
+      body: "The form below asks for your name, an email, and a WhatsApp number. It takes a minute, and it tells us who the transfer belongs to.",
     },
     {
       title: "Send the e-transfer",
