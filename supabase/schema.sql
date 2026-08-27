@@ -88,10 +88,14 @@ insert into programs (
   ]'::jsonb,
   'open',
   '[
-    {"title": "The Tools of Logic", "body": "Discover the three universal categories of reason and how they shape human understanding."},
-    {"title": "The Nature of Existence", "body": "Delve into how divine attributes such as eternity, unicity, and knowledge are articulated."},
-    {"title": "Ethics & Revelation", "body": "Examine the rational foundations behind moral responsibility."},
-    {"title": "Open Dialogue", "body": "Engage in weekly guided reflections connecting historical philosophy to modern questions of life."}
+    {"title": "The Rulings of the Intellect", "body": "Understanding the three fundamental rulings of the intellect:", "items": ["Wajib — that which must be", "Mustahil — that which cannot be", "Ja’iz — that which may or may not be"]},
+    {"title": "Knowing Allah", "body": "An introduction to the rational obligation of knowing Allah and the proofs that establish His existence, perfection, and transcendence."},
+    {"title": "The Divine Attributes", "body": "Studying the necessary attributes of Allah ﷻ, including:", "items": ["Existence", "Beginninglessness", "Everlastingness", "His non-resemblance to anything", "His Self-Sufficiency", "His Oneness"], "note": "And the remaining attributes traditionally studied within the science of Aqidah."},
+    {"title": "The Attributes of Meaning", "body": "Exploring Allah’s:", "items": ["Power", "Will", "Knowledge", "Life", "Hearing", "Seeing", "Speech"]},
+    {"title": "The Relationship Between Revelation and Reason", "body": "Understanding the role of sound intellect and transmitted revelation in understanding matters of creed."},
+    {"title": "Prophethood", "body": "An introduction to the necessity of messengers, their attributes, their truthfulness, and the rational proofs establishing their mission."},
+    {"title": "Miracles", "body": "Understanding the meaning of a miracle and its role as a confirmation."},
+    {"title": "Matters Known Through Revelation", "body": "Lastly, an introduction to realities whose knowledge is established through revelation."}
   ]'::jsonb,
   '[
     {"title": "Welcome & Orientation", "note": "The essentials, and unpacking the art of inquiry and sacred philosophy", "part": "Weeks 1–2", "part_title": "The Foundations of Reason & Inquiry"},

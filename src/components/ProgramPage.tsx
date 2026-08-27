@@ -175,17 +175,35 @@ export function ProgramPage({ program }: { program: Program }) {
 
         {program.explore.length > 0 ? (
           <section className="border-t border-line py-14">
-            <p className="rubric">What we will explore</p>
-            <div className="mt-8 grid gap-x-12 gap-y-10 sm:grid-cols-2">
-              {program.explore.map((item) => (
-                <div key={item.title}>
-                  <h2 className="font-display text-2xl leading-snug">
+            <p className="rubric">What we will study</p>
+            <ol className="mt-8 grid gap-x-12 gap-y-10 sm:grid-cols-2">
+              {program.explore.map((item, i) => (
+                <li key={item.title}>
+                  <span className="font-mono text-sm text-brass">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <h2 className="mt-2 font-display text-2xl leading-snug">
                     {item.title}
                   </h2>
                   <p className="mt-2 max-w-prose text-slate">{item.body}</p>
-                </div>
+                  {item.items && item.items.length > 0 ? (
+                    <ul className="mt-3 max-w-prose space-y-1.5 text-slate">
+                      {item.items.map((entry) => (
+                        <li key={entry} className="flex gap-3">
+                          <span aria-hidden="true" className="text-brass">
+                            —
+                          </span>
+                          <span>{entry}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {item.note ? (
+                    <p className="mt-3 max-w-prose text-slate">{item.note}</p>
+                  ) : null}
+                </li>
               ))}
-            </div>
+            </ol>
           </section>
         ) : null}
 

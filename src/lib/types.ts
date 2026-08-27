@@ -40,6 +40,13 @@ export type Session = {
 export type ExploreItem = {
   title: string;
   body: string;
+  /**
+   * Set under the body as a list — the named things a topic covers, e.g. the
+   * three rulings of the intellect, or the attributes of meaning.
+   */
+  items?: string[];
+  /** A closing line after that list, for what it does not name outright. */
+  note?: string;
 };
 
 export type Program = {

@@ -94,7 +94,9 @@ Supabase table editor. The fields that matter:
 - `capacity` — the size of the group. This is what the circle draws; it is
   not a count of registrations.
 - `explore` — a JSON array of `{"title": "...", "body": "..."}` for the "What
-  we will explore" section.
+  we will study" section, shown numbered in the order you write them. Add
+  `"items": ["...", "..."]` to set a list under the body, and `"note": "..."`
+  for a closing line after that list; both are optional.
 - `sessions` — a JSON array of `{"title": "...", "note": "..."}`, one per
   session, in order. Add `"part": "Weeks 3–4"` to a session to start a new
   part there, and `"part_title": "..."` to give that part a name.
