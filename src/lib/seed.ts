@@ -19,9 +19,9 @@ export const SEED_PROGRAMS: Program[] = [
       "Mapping the Divine is an interactive group course designed for anyone curious about the bridge between intellect and spirituality. Over eight weeks we work through al-‘Aqida al-Sanusiyya al-Sughra — the short creed of Imam Muhammad ibn Yusuf al-Sanusi, known everywhere as Umm al-Barahin, the Mother of Proofs — a timeless masterpiece that uses formal logic to investigate the Divine and the human condition. Whether you are seeking to deepen your personal faith, explore classical philosophy, or simply engage with an ancient rational tradition in an open, welcoming environment, this workshop offers a space for meaningful conversation and critical inquiry.",
     book_note:
       "al-‘Aqida al-Sanusiyya al-Sughra by Imam al-Sanusi — known as Umm al-Barahin, the Mother of Proofs",
-    format_note: "2 months · 16 sessions · 1.5 hours each · 24 hours in total",
+    format_note: "2 months · 16 sessions · 1 hour 15 minutes each · 20 hours in total",
     meeting_note:
-      "Mid-September to mid-November 2026 · two sessions a week · days and times to be confirmed",
+      "Mid-September to mid-November 2026 · Tuesdays and Thursdays · 8:45–10:00 pm ET",
     location: "Online, plus one in-person session per month",
     fee_note: "$150 for the whole course (2 months)",
     // An internal target for the size of the circle. Never shown to visitors:
