@@ -90,8 +90,20 @@ export type ProgramEdit = Pick<
   | "status"
 >;
 
-export async function setProgramFields(id: string, fields: ProgramEdit) {
-  const { error } = await supabase().from("programs").update(fields).eq("id", id);
+/**
+ * Writes only the fields the caller actually passed. A field left undefined is
+ * not touched, so a form that never posted one cannot blank the column behind
+ * the editor's back.
+ */
+export async function setProgramFields(
+  id: string,
+  fields: Partial<ProgramEdit>,
+) {
+  const present = Object.fromEntries(
+    Object.entries(fields).filter(([, value]) => value !== undefined),
+  );
+  if (Object.keys(present).length === 0) return;
+  const { error } = await supabase().from("programs").update(present).eq("id", id);
   if (error) throw new Error(error.message);
 }
 

@@ -64,12 +64,25 @@ export async function removeRegistration(formData: FormData) {
 
 const PROGRAM_STATUS = ["draft", "open", "closed"] as const;
 
-/** Trimmed text, or null where the column allows one and the field is empty. */
+/**
+ * Trimmed text, or undefined when the form did not post the field at all.
+ *
+ * The two are not the same thing and used to be treated as one. A form
+ * rendered before a field existed posts nothing for it, and reading that as
+ * an empty string blanked the column on the next save — which is how
+ * audience_note was lost within an hour of shipping, by someone saving an
+ * admin page their browser had loaded before the deploy. An input that is on
+ * the page and left empty still posts "", so clearing a field on purpose
+ * works as it always did.
+ */
 function text(formData: FormData, name: string) {
-  return String(formData.get(name) ?? "").trim();
+  const raw = formData.get(name);
+  return raw === null ? undefined : String(raw).trim();
 }
+/** The same, as null rather than "" for the columns that allow one. */
 function textOrNull(formData: FormData, name: string) {
-  return text(formData, name) || null;
+  const value = text(formData, name);
+  return value === undefined ? undefined : value || null;
 }
 
 export async function updateProgram(
@@ -90,16 +103,24 @@ export async function updateProgram(
 
   const fieldErrors: Record<string, string> = {};
 
+  // Each of these is only checked when the form actually posted it. A field
+  // that is missing is left as it is in the database rather than rejected.
   const title = text(formData, "title");
-  if (!title) fieldErrors.title = "A program needs a title.";
+  if (title === "") fieldErrors.title = "A program needs a title.";
 
-  const capacity = Number(text(formData, "capacity"));
-  if (!Number.isInteger(capacity) || capacity < 1) {
+  const capacityText = text(formData, "capacity");
+  const capacity = capacityText === undefined ? undefined : Number(capacityText);
+  if (
+    capacity !== undefined &&
+    (!Number.isInteger(capacity) || capacity < 1)
+  ) {
     fieldErrors.capacity = "A whole number, 1 or more.";
   }
 
-  const status = text(formData, "status") as ProgramEdit["status"];
-  if (!PROGRAM_STATUS.includes(status)) fieldErrors.status = "Pick a status.";
+  const status = text(formData, "status") as ProgramEdit["status"] | undefined;
+  if (status !== undefined && !PROGRAM_STATUS.includes(status)) {
+    fieldErrors.status = "Pick a status.";
+  }
 
   if (Object.keys(fieldErrors).length > 0) {
     return {
