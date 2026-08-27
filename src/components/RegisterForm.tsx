@@ -139,7 +139,6 @@ export function RegisterForm({
             name="note"
             rows={3}
             className="field-input mt-2 resize-y"
-            placeholder="Childcare, accessibility, a week you already know you will miss."
           />
         </div>
       </div>
