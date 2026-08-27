@@ -55,6 +55,8 @@ export type Program = {
   format_note: string;
   meeting_note: string;
   location: string;
+  /** Who may come, e.g. "Open to all — recommended 16 and older". */
+  audience_note: string;
   fee_note: string;
   capacity: number;
   registration_note: string | null;

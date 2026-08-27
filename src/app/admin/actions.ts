@@ -120,6 +120,7 @@ export async function updateProgram(
     format_note: text(formData, "format_note"),
     meeting_note: text(formData, "meeting_note"),
     location: text(formData, "location"),
+    audience_note: text(formData, "audience_note"),
     fee_note: text(formData, "fee_note"),
     capacity,
     registration_note: textOrNull(formData, "registration_note"),

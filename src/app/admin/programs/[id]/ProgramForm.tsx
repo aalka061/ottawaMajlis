@@ -167,6 +167,18 @@ export function ProgramForm({ program }: { program: Program }) {
           />
         </Field>
         <Field
+          name="audience_note"
+          label="Who"
+          hint="Who may come, e.g. Open to all — recommended 16 and older. Leave it empty to drop the row."
+        >
+          <input
+            id="audience_note"
+            name="audience_note"
+            defaultValue={program.audience_note}
+            className="field-input"
+          />
+        </Field>
+        <Field
           name="fee_note"
           label="Fee"
           hint='The amount only, e.g. $150 for the whole course (2 months). The page supplies "by Interac e-transfer to…" around it, so leave the method out.'

@@ -89,8 +89,9 @@ Supabase table editor. The fields that matter:
 - `term` — the small red line above the title, e.g. "Starts mid-September
   2026".
 - `lede` — the opening question, set large under the title.
-- `format_note`, `meeting_note`, `location`, `fee_note` — the four rows
-  beside the summary in "The course", shown as written.
+- `format_note`, `meeting_note`, `location`, `audience_note`, `fee_note` —
+  the rows beside the summary in "The course", shown as written. An empty one
+  drops its row.
 - `capacity` — the size of the group. This is what the circle draws; it is
   not a count of registrations.
 - `explore` — a JSON array of `{"title": "...", "body": "..."}` for the "What

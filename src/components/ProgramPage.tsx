@@ -50,8 +50,8 @@ function siteLabel(url: string): string {
 
 /**
  * The whole site, as one page about one program. Ottawa Majless is the house
- * the program is held in, so it stays in the margins: the mark in the header,
- * one section near the end, the footer.
+ * the program is held in, so it stays in the margins: the mark in the header
+ * and the footer, and nowhere in the body.
  */
 export function ProgramPage({ program }: { program: Program }) {
   const open = program.status === "open";
@@ -134,6 +134,7 @@ export function ProgramPage({ program }: { program: Program }) {
                   ["Format", program.format_note],
                   ["When", program.meeting_note],
                   ["Where", program.location],
+                  ["Who", program.audience_note],
                   ["Fee", program.fee_note],
                   ...(open ? [["Places", SCARCITY.detail]] : []),
                 ]
@@ -247,36 +248,6 @@ export function ProgramPage({ program }: { program: Program }) {
             </div>
           </section>
         ) : null}
-
-        <section className="border-t border-line py-14">
-          <p className="rubric">The room it is read in</p>
-          <div className="mt-8 grid gap-10 md:grid-cols-3">
-            <div>
-              <h2 className="font-display text-2xl">How we read</h2>
-              <p className="mt-3 text-slate">
-                A few pages a session, read aloud and taken apart. Nobody is
-                expected to have read ahead, and the questions matter more than
-                the notes.
-              </p>
-            </div>
-            <div>
-              <h2 className="font-display text-2xl">Who comes</h2>
-              <p className="mt-3 text-slate">
-                People from across Ottawa, most with no formal study behind
-                them. Come as you are; ask the question you think everyone else
-                already knows the answer to.
-              </p>
-            </div>
-            <div>
-              <h2 className="font-display text-2xl">Who runs it</h2>
-              <p className="mt-3 text-slate">
-                Ottawa Majless, a small volunteer-run circle that studies a
-                classical text a few pages at a time — closer to a seminar than
-                a lecture. This program is what it is running now.
-              </p>
-            </div>
-          </div>
-        </section>
 
         <section
           id="register"

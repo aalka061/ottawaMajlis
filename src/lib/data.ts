@@ -79,6 +79,7 @@ export type ProgramEdit = Pick<
   | "format_note"
   | "meeting_note"
   | "location"
+  | "audience_note"
   | "fee_note"
   | "capacity"
   | "registration_note"

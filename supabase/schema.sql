@@ -18,6 +18,7 @@ create table if not exists programs (
   format_note text not null default '',
   meeting_note text not null default '',
   location text not null default '',
+  audience_note text not null default '',
   fee_note text not null default '',
   capacity integer not null default 20,
   registration_note text,
@@ -61,7 +62,7 @@ alter table registrations enable row level security;
 -- internal target only; the site never shows it and registration stays open.
 insert into programs (
   slug, title, tagline, term, lede, summary, book_note, format_note, meeting_note,
-  location, fee_note, capacity, teacher_name, teacher_bio, teacher_photo,
+  location, audience_note, fee_note, capacity, teacher_name, teacher_bio, teacher_photo,
   teacher_url, teacher_credentials, status, explore
 ) values (
   'mapping-the-divine',
@@ -74,6 +75,7 @@ insert into programs (
   '2 months · 16 online sessions of 1 hour 15 minutes · 2 in-person sessions of 2 hours · 24 hours in total',
   'Mid-September to mid-November 2026 · Tuesdays and Thursdays · 8:45–10:00 pm ET',
   'Online, plus one in-person session per month',
+  'Open to all — recommended 16 and older',
   '$150 for the whole course (2 months)',
   20,
   'Shaykh Zakaria AbdilAziz',
