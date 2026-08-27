@@ -28,15 +28,6 @@ export function statusLabel(status: string): string {
   return STATUS_LABEL[status as RegistrationStatus] ?? "Registered — unpaid";
 }
 
-export type Session = {
-  title: string;
-  note?: string;
-  /** Set on the session that opens a new part, e.g. "Weeks 1–2". */
-  part?: string;
-  /** Optional name for that part. */
-  part_title?: string;
-};
-
 export type ExploreItem = {
   title: string;
   body: string;
@@ -75,7 +66,6 @@ export type Program = {
   teacher_credentials: string[];
   status: "draft" | "open" | "closed";
   explore: ExploreItem[];
-  sessions: Session[];
 };
 
 export type Registration = {

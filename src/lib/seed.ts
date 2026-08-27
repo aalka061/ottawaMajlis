@@ -96,59 +96,5 @@ export const SEED_PROGRAMS: Program[] = [
         body: "Lastly, an introduction to realities whose knowledge is established through revelation.",
       },
     ],
-    sessions: [
-      {
-        title: "Welcome & Orientation",
-        note: "The essentials, and unpacking the art of inquiry and sacred philosophy",
-        part: "Weeks 1–2",
-        part_title: "The Foundations of Reason & Inquiry",
-      },
-      {
-        title: "The Three Rulings of the Mind",
-        note: "Necessary, impossible, and possible",
-      },
-      { title: "Moral Accountability & The Human Journey Toward Truth" },
-      {
-        title: "Reason & Tradition",
-        note: "How ancient thinkers approached big questions",
-      },
-      { title: "The Concept of Existence", part: "Weeks 3–4" },
-      {
-        title: "Time and Timelessness",
-        note: "Pre-eternity and continuity",
-      },
-      {
-        title: "Transcending the Material World",
-        note: "Distinctness and independence",
-      },
-      {
-        title: "The Idea of Oneness",
-        note: "Exploring unicity in classical thought",
-      },
-      { title: "Divine Will & Power", part: "Weeks 5–6" },
-      { title: "Unlimited Knowledge" },
-      {
-        title: "Perception Beyond the Material",
-        note: "Hearing and sight",
-      },
-      {
-        title: "Perception Beyond the Material",
-        note: "Speech",
-      },
-      {
-        title: "The Harmony of Divine Attributes",
-        note: "Understanding the quasi-attributes, and the role of guides and teachers in human history",
-        part: "Weeks 7–8",
-      },
-      { title: "Miracles, Proofs, and the Validation of Truth" },
-      {
-        title: "The Core Message",
-        note: "Distilling creed into everyday wisdom",
-      },
-      {
-        title: "Closing Reflection",
-        note: "Integrating reason, logic, and personal conviction",
-      },
-    ],
   },
 ];

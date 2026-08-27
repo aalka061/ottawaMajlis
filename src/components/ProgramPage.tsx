@@ -3,7 +3,7 @@ import { MajlisRing } from "@/components/MajlisRing";
 import { RegisterForm } from "@/components/RegisterForm";
 import { SiteHeader, type NavLink } from "@/components/SiteChrome";
 import { CONTACT_EMAIL, ETRANSFER_EMAIL } from "@/lib/site";
-import type { Program, Session } from "@/lib/types";
+import type { Program } from "@/lib/types";
 
 /**
  * The one thing said about the size of the group, in the three places a
@@ -39,12 +39,6 @@ function steps(program: Program) {
   ];
 }
 
-type Group = {
-  part: string;
-  partTitle?: string;
-  items: { number: number; session: Session }[];
-};
-
 /** "https://www.muraqabah.ca/" reads as "muraqabah.ca" on the page. */
 function siteLabel(url: string): string {
   try {
@@ -54,22 +48,6 @@ function siteLabel(url: string): string {
   }
 }
 
-/** Sessions carry the part label that opens their group; fold them into it. */
-function groupSessions(sessions: Session[]): Group[] {
-  const groups: Group[] = [];
-  sessions.forEach((session, i) => {
-    if (session.part || groups.length === 0) {
-      groups.push({
-        part: session.part ?? "",
-        partTitle: session.part_title,
-        items: [],
-      });
-    }
-    groups[groups.length - 1].items.push({ number: i + 1, session });
-  });
-  return groups;
-}
-
 /**
  * The whole site, as one page about one program. Ottawa Majless is the house
  * the program is held in, so it stays in the margins: the mark in the header,
@@ -77,7 +55,6 @@ function groupSessions(sessions: Session[]): Group[] {
  */
 export function ProgramPage({ program }: { program: Program }) {
   const open = program.status === "open";
-  const groups = groupSessions(program.sessions);
   const hasTeacherDetail =
     Boolean(program.teacher_bio) ||
     Boolean(program.teacher_url) ||
@@ -85,10 +62,12 @@ export function ProgramPage({ program }: { program: Program }) {
 
   const links: NavLink[] = [
     { href: "#course", label: "The course" },
+    ...(program.explore.length > 0
+      ? [{ href: "#study", label: "What we study" }]
+      : []),
     ...(program.teacher_name
       ? [{ href: "#teacher", label: "Who teaches" }]
       : []),
-    { href: "#sessions", label: "Sessions" },
     ...(open ? [{ href: "#register", label: "Register" }] : []),
   ];
 
@@ -174,7 +153,10 @@ export function ProgramPage({ program }: { program: Program }) {
         </section>
 
         {program.explore.length > 0 ? (
-          <section className="border-t border-line py-14">
+          <section
+            id="study"
+            className="scroll-mt-24 border-t border-line py-14"
+          >
             <p className="rubric">What we will study</p>
             <ol className="mt-8 grid gap-x-12 gap-y-10 sm:grid-cols-2">
               {program.explore.map((item, i) => (
@@ -265,54 +247,6 @@ export function ProgramPage({ program }: { program: Program }) {
             </div>
           </section>
         ) : null}
-
-        <section
-          id="sessions"
-          className="scroll-mt-24 border-t border-line py-14"
-        >
-          <p className="rubric">The {program.sessions.length} sessions</p>
-          <div className="mt-8 border-t border-line">
-            {groups.map((group) => (
-              <div
-                key={group.part || "part"}
-                className="grid gap-y-2 py-6 sm:grid-cols-[9rem_1fr]"
-              >
-                <div className="sm:pt-4">
-                  <p className="font-mono text-[0.6875rem] tracking-[0.14em] text-madder uppercase">
-                    {group.part}
-                  </p>
-                  {group.partTitle ? (
-                    <p className="mt-2 max-w-[8rem] font-display text-lg leading-snug text-slate">
-                      {group.partTitle}
-                    </p>
-                  ) : null}
-                </div>
-                <ol className="divide-y divide-line border-y border-line">
-                  {group.items.map(({ number, session }) => (
-                    <li
-                      key={number}
-                      className="grid gap-1 py-4 sm:grid-cols-[3rem_1fr] sm:items-baseline"
-                    >
-                      <span className="font-mono text-sm text-brass">
-                        {String(number).padStart(2, "0")}
-                      </span>
-                      <span>
-                        <span className="font-display text-2xl leading-snug">
-                          {session.title}
-                        </span>
-                        {session.note ? (
-                          <span className="ml-3 text-slate">
-                            — {session.note}
-                          </span>
-                        ) : null}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ))}
-          </div>
-        </section>
 
         <section className="border-t border-line py-14">
           <p className="rubric">The room it is read in</p>

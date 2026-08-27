@@ -141,7 +141,7 @@ export function ProgramForm({ program }: { program: Program }) {
         <Field
           name="format_note"
           label="Format"
-          hint="e.g. 2 months · 16 sessions · 1.5 hours each"
+          hint="e.g. 2 months · 16 sessions · 1 hour 15 minutes each"
         >
           <input
             id="format_note"
@@ -292,8 +292,8 @@ export function ProgramForm({ program }: { program: Program }) {
       <div className="mt-8 flex flex-wrap items-center gap-5">
         <SaveButton />
         <p className="font-mono text-xs text-slate">
-          The sessions, the four cards, and the teacher’s credentials are lists
-          — edit those in Supabase.
+          What we study and the teacher’s credentials are lists — edit those
+          in Supabase.
         </p>
       </div>
     </form>

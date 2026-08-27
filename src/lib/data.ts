@@ -64,8 +64,8 @@ export async function getProgramById(id: string): Promise<Program | null> {
 
 /**
  * The fields the register can edit. The slug is left out on purpose — it is
- * the address of the page — and so are the three list fields (credentials,
- * explore, sessions), which are edited in Supabase.
+ * the address of the page — and so are the two list fields (credentials and
+ * explore), which are edited in Supabase.
  */
 export type ProgramEdit = Pick<
   Program,

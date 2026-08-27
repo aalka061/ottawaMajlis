@@ -86,8 +86,8 @@ Supabase table editor. The fields that matter:
 - `status` — `open` puts the program on the front page and accepts
   registrations, `closed` keeps the page up but stops the form, `draft` keeps
   it off the site entirely.
-- `term` — the small red line above the title, e.g. "Eight weeks · sixteen
-  sessions".
+- `term` — the small red line above the title, e.g. "Starts mid-September
+  2026".
 - `lede` — the opening question, set large under the title.
 - `format_note`, `meeting_note`, `location`, `fee_note` — the four rows
   beside the summary in "The course", shown as written.
@@ -97,9 +97,6 @@ Supabase table editor. The fields that matter:
   we will study" section, shown numbered in the order you write them. Add
   `"items": ["...", "..."]` to set a list under the body, and `"note": "..."`
   for a closing line after that list; both are optional.
-- `sessions` — a JSON array of `{"title": "...", "note": "..."}`, one per
-  session, in order. Add `"part": "Weeks 3–4"` to a session to start a new
-  part there, and `"part_title": "..."` to give that part a name.
 
 The front page shows whichever program is `open` — the most recently created
 one, if somehow two are. Adding a row is how you set up the next term: leave it

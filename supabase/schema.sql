@@ -28,7 +28,6 @@ create table if not exists programs (
   teacher_credentials jsonb not null default '[]'::jsonb,
   status text not null default 'draft' check (status in ('draft', 'open', 'closed')),
   explore jsonb not null default '[]'::jsonb,
-  sessions jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -63,7 +62,7 @@ alter table registrations enable row level security;
 insert into programs (
   slug, title, tagline, term, lede, summary, book_note, format_note, meeting_note,
   location, fee_note, capacity, teacher_name, teacher_bio, teacher_photo,
-  teacher_url, teacher_credentials, status, explore, sessions
+  teacher_url, teacher_credentials, status, explore
 ) values (
   'mapping-the-divine',
   'Mapping the Divine',
@@ -96,24 +95,6 @@ insert into programs (
     {"title": "Prophethood", "body": "An introduction to the necessity of messengers, their attributes, their truthfulness, and the rational proofs establishing their mission."},
     {"title": "Miracles", "body": "Understanding the meaning of a miracle and its role as a confirmation."},
     {"title": "Matters Known Through Revelation", "body": "Lastly, an introduction to realities whose knowledge is established through revelation."}
-  ]'::jsonb,
-  '[
-    {"title": "Welcome & Orientation", "note": "The essentials, and unpacking the art of inquiry and sacred philosophy", "part": "Weeks 1–2", "part_title": "The Foundations of Reason & Inquiry"},
-    {"title": "The Three Rulings of the Mind", "note": "Necessary, impossible, and possible"},
-    {"title": "Moral Accountability & The Human Journey Toward Truth"},
-    {"title": "Reason & Tradition", "note": "How ancient thinkers approached big questions"},
-    {"title": "The Concept of Existence", "part": "Weeks 3–4"},
-    {"title": "Time and Timelessness", "note": "Pre-eternity and continuity"},
-    {"title": "Transcending the Material World", "note": "Distinctness and independence"},
-    {"title": "The Idea of Oneness", "note": "Exploring unicity in classical thought"},
-    {"title": "Divine Will & Power", "part": "Weeks 5–6"},
-    {"title": "Unlimited Knowledge"},
-    {"title": "Perception Beyond the Material", "note": "Hearing and sight"},
-    {"title": "Perception Beyond the Material", "note": "Speech"},
-    {"title": "The Harmony of Divine Attributes", "note": "Understanding the quasi-attributes, and the role of guides and teachers in human history", "part": "Weeks 7–8"},
-    {"title": "Miracles, Proofs, and the Validation of Truth"},
-    {"title": "The Core Message", "note": "Distilling creed into everyday wisdom"},
-    {"title": "Closing Reflection", "note": "Integrating reason, logic, and personal conviction"}
   ]'::jsonb
 )
 on conflict (slug) do nothing;
