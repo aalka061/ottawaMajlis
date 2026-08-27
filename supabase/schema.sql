@@ -75,7 +75,7 @@ insert into programs (
   '2 months · 16 online sessions of 1 hour 15 minutes · 2 in-person sessions of 2 hours · 24 hours in total',
   'Mid-September to mid-November 2026 · Tuesdays and Thursdays · 8:45–10:00 pm ET',
   'Online, plus one in-person session per month',
-  'Open to all — recommended 16 and older',
+  'Open to all — best suited to 16 and older',
   '$150 for the whole course (2 months)',
   20,
   'Shaykh Zakaria AbdilAziz',

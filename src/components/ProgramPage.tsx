@@ -16,7 +16,7 @@ const SCARCITY = {
   ring: "Places are limited",
   detail: "Limited — the circle closes when they are taken",
   joining:
-    "Places are limited, and it is the e-transfer that holds one — earlier is safer than later.",
+    "Places are limited, and the e-transfer is what holds yours. Send it early.",
 };
 
 /**

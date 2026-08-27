@@ -23,7 +23,7 @@ export const SEED_PROGRAMS: Program[] = [
     meeting_note:
       "Mid-September to mid-November 2026 · Tuesdays and Thursdays · 8:45–10:00 pm ET",
     location: "Online, plus one in-person session per month",
-    audience_note: "Open to all — recommended 16 and older",
+    audience_note: "Open to all — best suited to 16 and older",
     fee_note: "$150 for the whole course (2 months)",
     // An internal target for the size of the circle. Never shown to visitors:
     // registration stays open past it.
