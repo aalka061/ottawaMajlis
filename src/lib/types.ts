@@ -58,6 +58,12 @@ export type Program = {
   /** Who may come, e.g. "Open to all — recommended 16 and older". */
   audience_note: string;
   fee_note: string;
+  /**
+   * Read only in the payment confirmation email, never on the site: what
+   * someone has not been sent yet, and roughly when it comes. It sits on the
+   * program because it moves with the term, the way every other date does.
+   */
+  materials_note: string;
   capacity: number;
   registration_note: string | null;
   teacher_name: string | null;
@@ -80,5 +86,11 @@ export type Registration = {
   note: string | null;
   status: RegistrationStatus;
   admin_note: string | null;
+  /**
+   * When the payment confirmation went out, null until it has. It is the
+   * only record that it was sent; re-sending overwrites it with the later
+   * time rather than keeping a history.
+   */
+  payment_email_sent_at: string | null;
   created_at: string;
 };

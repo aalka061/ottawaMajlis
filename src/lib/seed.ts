@@ -25,6 +25,8 @@ export const SEED_PROGRAMS: Program[] = [
     location: "Online, plus one in-person session per month",
     audience_note: "Open to all — best suited to 16 and older",
     fee_note: "$150 for the whole course (2 months)",
+    materials_note:
+      "The Zoom link and the course materials come to you closer to 15 September.",
     // An internal target for the size of the circle. Never shown to visitors:
     // registration stays open past it.
     capacity: 20,

@@ -11,11 +11,18 @@ import {
 import {
   deleteRegistration,
   getProgramById,
+  getRegistrationById,
+  markPaymentEmailSent,
   setAdminNote,
   setProgramFields,
   setRegistrationStatus,
   type ProgramEdit,
 } from "@/lib/data";
+import {
+  isEmailConfigured,
+  paymentConfirmation,
+  sendEmail,
+} from "@/lib/email";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/form-state";
 import { STATUS_ORDER, type RegistrationStatus } from "@/lib/types";
 
@@ -49,6 +56,81 @@ export async function updateRegistration(formData: FormData) {
   }
   await setAdminNote(id, note);
   revalidatePath("/admin");
+}
+
+/**
+ * Tells someone their money arrived and their place is theirs, then records
+ * that we did. Nothing here is automatic: it is sent when you have seen the
+ * e-transfer land, by pressing the button beside their name.
+ *
+ * The row is marked only after Resend has accepted the mail, so "sent" in the
+ * register never means "we tried". A failure leaves the row untouched and the
+ * button ready to press again.
+ */
+export async function sendPaymentConfirmation(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return EMPTY_FORM_STATE;
+
+  if (!isEmailConfigured) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "Email is not set up. Add RESEND_API_KEY to your environment.",
+    };
+  }
+
+  const registration = await getRegistrationById(id);
+  if (!registration) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "That registration is no longer in the database.",
+    };
+  }
+
+  // The email says their place is held, which is only true once they have
+  // paid. Sending it to anyone else would be telling them something untrue.
+  if (registration.status !== "confirmed") {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message:
+        "Set their status to Paid — place held first. The email tells them their place is reserved, so it should only go out once the transfer has arrived.",
+    };
+  }
+
+  const program = await getProgramById(registration.program_id);
+  if (!program) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "Their program is no longer in the database.",
+    };
+  }
+
+  try {
+    await sendEmail(registration.email, paymentConfirmation(registration, program));
+  } catch (error) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: `It was not sent: ${error instanceof Error ? error.message : "the mail server refused it"}. Nothing was recorded, so you can try again.`,
+    };
+  }
+
+  await markPaymentEmailSent(id);
+  revalidatePath("/admin");
+
+  return {
+    ...EMPTY_FORM_STATE,
+    status: "ok",
+    message: `Sent to ${registration.email}.`,
+  };
 }
 
 export async function removeRegistration(formData: FormData) {
@@ -143,6 +225,7 @@ export async function updateProgram(
     location: text(formData, "location"),
     audience_note: text(formData, "audience_note"),
     fee_note: text(formData, "fee_note"),
+    materials_note: text(formData, "materials_note"),
     capacity,
     registration_note: textOrNull(formData, "registration_note"),
     teacher_name: textOrNull(formData, "teacher_name"),

@@ -191,6 +191,18 @@ export function ProgramForm({ program }: { program: Program }) {
           />
         </Field>
         <Field
+          name="materials_note"
+          label="What has not been sent yet"
+          hint="One line, read only in the payment confirmation email — never on the site. Say when the Zoom link and materials come, e.g. closer to 15 September."
+        >
+          <input
+            id="materials_note"
+            name="materials_note"
+            defaultValue={program.materials_note}
+            className="field-input"
+          />
+        </Field>
+        <Field
           name="registration_note"
           label="Note when registration is closed"
           hint="Optional. Replaces the form once the status is Closed — say when the next cohort opens."

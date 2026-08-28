@@ -81,6 +81,7 @@ export type ProgramEdit = Pick<
   | "location"
   | "audience_note"
   | "fee_note"
+  | "materials_note"
   | "capacity"
   | "registration_note"
   | "teacher_name"
@@ -144,6 +145,31 @@ export async function setRegistrationStatus(
   const { error } = await supabase()
     .from("registrations")
     .update({ status })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+/** One row, for the actions that work on a single person. */
+export async function getRegistrationById(
+  id: string,
+): Promise<Registration | null> {
+  const { data, error } = await supabase()
+    .from("registrations")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as Registration) ?? null;
+}
+
+/**
+ * Records that the payment confirmation went out, now. Called only after the
+ * send itself has succeeded, so a row that says it was sent means it was.
+ */
+export async function markPaymentEmailSent(id: string) {
+  const { error } = await supabase()
+    .from("registrations")
+    .update({ payment_email_sent_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw new Error(error.message);
 }

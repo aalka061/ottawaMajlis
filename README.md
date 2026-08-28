@@ -14,7 +14,7 @@ Running cost: **$0/year**, plus a domain if you want one (~$12–15/year).
 | --- | --- |
 | `/` | The whole site: the open program, end to end, with the registration form |
 | `/programs/[slug]` | The same page for a program that is not the open one — a draft, or one that has closed. Kept out of search results; it is there so you can read a program before you open it |
-| `/admin` | The register: everyone who signed up, their status, your notes, CSV export, delete |
+| `/admin` | The register: everyone who signed up, their status, your notes, the payment confirmation email, CSV export, delete |
 | `/admin/login` | One shared password |
 
 A registration has two live states: **registered — unpaid** (they submitted the
@@ -64,6 +64,8 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ADMIN_PASSWORD=pick-something-long
 ADMIN_SESSION_SECRET=paste-output-of-openssl-rand-hex-32
+RESEND_API_KEY=re_...
+EMAIL_FROM="Ottawa Majless <majless@your-verified-domain>"
 ```
 
 The service role key bypasses row level security, so it stays on the server —
@@ -74,7 +76,7 @@ never put it in a `NEXT_PUBLIC_` variable and never commit `.env.local`.
 1. Push this repository to GitHub.
 2. Import it at [vercel.com](https://vercel.com) — the Hobby plan is free and
    fits this site comfortably.
-3. Add the same four environment variables in the Vercel project settings.
+3. Add the same six environment variables in the Vercel project settings.
 4. Deploy. You get `something.vercel.app` for free; point your own domain at it
    later from the same screen if you buy one.
 
@@ -119,3 +121,48 @@ place held**.
 
 If you later want cards, the place to add it is a checkout beside the
 e-transfer panel in `src/components/PaymentPanel.tsx`.
+
+## Confirming a payment
+
+Once you have set someone to **Paid — place held**, a **Send confirmation**
+button appears beside them in the register. It writes to them once: the money
+arrived, the place is theirs, here is what they have secured, and the Zoom link
+and materials come later. Nothing else — there is nothing for them to do.
+
+The button is separate from the status on purpose. Marking someone paid is
+bookkeeping; writing to them is not, and doing it by hand means you can settle
+the money first and write when you mean to. The register shows the date it went
+out under their name, and offers to send it again — the same person does
+occasionally need a second copy.
+
+What the email says comes from the program row, so it is right for whichever
+term is running: the title, `meeting_note` for the dates and times, `location`,
+and `materials_note` for the one line about what has not been sent yet. Edit
+`materials_note` in the program editor at the start of each term.
+
+Nothing is sent automatically, and nothing is sent to someone who has not been
+marked paid — the email tells them their place is held, which is only true once
+it is.
+
+### Setting up sending
+
+Email goes out through [Resend](https://resend.com) — the free tier is 3,000 a
+month, far past what a term needs. You need a **domain verified in Resend** to
+send from your own address; without one Resend only lets you send to yourself,
+which is no use here.
+
+1. Add and verify a domain in Resend (it gives you the DNS records to add).
+2. Create an API key and put it in `RESEND_API_KEY`.
+3. Set `EMAIL_FROM` to an address on that domain, e.g.
+   `"Ottawa Majless <majless@yourdomain.ca>"`. Quote it — the angle brackets
+   confuse a shell otherwise.
+
+Replies do not go to `EMAIL_FROM`. Every message sets Reply-To to
+`CONTACT_EMAIL` in `src/lib/site.ts`, which is the inbox the e-transfers land
+in — so someone answering the confirmation reaches you where you already look.
+
+The sending itself lives in `src/lib/email.ts`, kept apart from the wording of
+any one message: `sendEmail` is the plumbing, `paymentConfirmation` is this
+particular letter. A later feature that writes to everyone on a program —
+schedule changes, the Zoom link when it exists — adds its own message beside it
+and sends it the same way.
