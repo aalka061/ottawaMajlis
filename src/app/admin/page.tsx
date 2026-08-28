@@ -11,6 +11,7 @@ import {
 } from "@/lib/types";
 import { whatsappLink } from "@/lib/phone";
 import { removeRegistration, signOut, updateRegistration } from "./actions";
+import { SendConfirmationButton } from "./SendConfirmationButton";
 
 export const dynamic = "force-dynamic";
 
@@ -261,6 +262,25 @@ export default async function AdminPage({ searchParams }: Params) {
                     </Link>
                   </div>
                 </form>
+              )}
+
+              {confirmDelete === r.id ? null : (
+                <div className="md:col-start-2">
+                  <p className="field-label">Payment confirmation</p>
+                  <p className="mt-1 max-w-prose text-sm text-slate">
+                    {r.status === "confirmed"
+                      ? "Tells them the transfer arrived and their place is held."
+                      : "Available once their status is Paid — place held."}
+                  </p>
+                  <div className="mt-3">
+                    {r.status === "confirmed" ? (
+                      <SendConfirmationButton
+                        registrationId={r.id}
+                        sentAt={r.payment_email_sent_at}
+                      />
+                    ) : null}
+                  </div>
+                </div>
               )}
             </li>
           ))}

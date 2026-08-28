@@ -20,6 +20,9 @@ create table if not exists programs (
   location text not null default '',
   audience_note text not null default '',
   fee_note text not null default '',
+  -- Read only in the payment confirmation email, not on the site: what
+  -- has not been sent yet, and roughly when it will be.
+  materials_note text not null default '',
   capacity integer not null default 20,
   registration_note text,
   teacher_name text,
@@ -45,6 +48,8 @@ create table if not exists registrations (
   status text not null default 'interested'
     check (status in ('interested', 'confirmed', 'waitlist', 'withdrawn')),
   admin_note text,
+  -- When the payment confirmation email went out, null until it has.
+  payment_email_sent_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -62,7 +67,7 @@ alter table registrations enable row level security;
 -- internal target only; the site never shows it and registration stays open.
 insert into programs (
   slug, title, tagline, term, lede, summary, book_note, format_note, meeting_note,
-  location, audience_note, fee_note, capacity, teacher_name, teacher_bio, teacher_photo,
+  location, audience_note, fee_note, materials_note, capacity, teacher_name, teacher_bio, teacher_photo,
   teacher_url, teacher_credentials, status, explore
 ) values (
   'mapping-the-divine',
@@ -77,6 +82,7 @@ insert into programs (
   'Online, plus one in-person session per month',
   'Open to all — best suited to 16 and older',
   '$150 for the whole course (2 months)',
+  'The Zoom link and the course materials come to you closer to 15 September.',
   20,
   'Shaykh Zakaria AbdilAziz',
   'Shaykh Zakaria AbdilAziz heads Muraqabah’s academic vision and is a graduate of the distinguished Alimiyyah program at Dar al-Mustafa in Tarim, Yemen, where he spent nearly two decades immersed in the traditional curriculum.',
