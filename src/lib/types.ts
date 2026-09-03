@@ -92,5 +92,11 @@ export type Registration = {
    * time rather than keeping a history.
    */
   payment_email_sent_at: string | null;
+  /**
+   * When the last payment reminder went out, null until one has. Unlike the
+   * confirmation this one is expected to be sent more than once, so the
+   * column holds the latest time and the register shows it beside the button.
+   */
+  payment_reminder_sent_at: string | null;
   created_at: string;
 };

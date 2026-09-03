@@ -12,7 +12,9 @@ import {
   deleteRegistration,
   getProgramById,
   getRegistrationById,
+  listRegistrations,
   markPaymentEmailSent,
+  markPaymentReminderSent,
   setAdminNote,
   setProgramFields,
   setRegistrationStatus,
@@ -21,10 +23,15 @@ import {
 import {
   isEmailConfigured,
   paymentConfirmation,
+  paymentReminder,
   sendEmail,
 } from "@/lib/email";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/form-state";
-import { STATUS_ORDER, type RegistrationStatus } from "@/lib/types";
+import {
+  STATUS_ORDER,
+  type Program,
+  type RegistrationStatus,
+} from "@/lib/types";
 
 export async function signIn(_prev: string, formData: FormData) {
   const password = String(formData.get("password") ?? "");
@@ -130,6 +137,170 @@ export async function sendPaymentConfirmation(
     ...EMPTY_FORM_STATE,
     status: "ok",
     message: `Sent to ${registration.email}.`,
+  };
+}
+
+/**
+ * The nudge, for one person who has registered and not paid. It is the same
+ * shape as the confirmation above — press it when you mean to write to them —
+ * except that it may be pressed more than once over a term, so the row keeps
+ * only the latest time and the button never stops offering another.
+ */
+export async function sendPaymentReminder(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return EMPTY_FORM_STATE;
+
+  if (!isEmailConfigured) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "Email is not set up. Add RESEND_API_KEY to your environment.",
+    };
+  }
+
+  const registration = await getRegistrationById(id);
+  if (!registration) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "That registration is no longer in the database.",
+    };
+  }
+
+  // The reminder says their place is not held, which stops being true the
+  // moment you mark them paid. Waitlisted and withdrawn people are not being
+  // asked for money either, so the nudge only fits an unpaid registration.
+  if (registration.status !== "interested") {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message:
+        "The reminder only goes to someone whose status is Registered — unpaid. It asks them for the fee, which is the wrong thing to say to anyone else.",
+    };
+  }
+
+  const program = await getProgramById(registration.program_id);
+  if (!program) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "Their program is no longer in the database.",
+    };
+  }
+
+  try {
+    await sendEmail(registration.email, paymentReminder(registration, program));
+  } catch (error) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: `It was not sent: ${error instanceof Error ? error.message : "the mail server refused it"}. Nothing was recorded, so you can try again.`,
+    };
+  }
+
+  await markPaymentReminderSent(id);
+  revalidatePath("/admin");
+
+  return {
+    ...EMPTY_FORM_STATE,
+    status: "ok",
+    message: `Sent to ${registration.email}.`,
+  };
+}
+
+/**
+ * Resend's free tier accepts two messages a second. A term's worth of unpaid
+ * registrations is tens of people, not thousands, so the round is sent one at
+ * a time with a gap rather than reaching for a queue.
+ */
+const SEND_GAP_MS = 600;
+
+const wait = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * The whole round: a reminder to everyone who has registered and not paid,
+ * each one written from their own program so a person on last term's course
+ * is not sent this term's fee.
+ *
+ * Every send is marked on its own row as it succeeds, so a round that dies
+ * halfway leaves an honest register: pressing it again writes to whoever is
+ * still unpaid, and the date beside each name is what tells you who that
+ * already reached.
+ */
+export async function sendPaymentReminders(
+  _prev: FormState,
+  _formData: FormData,
+): Promise<FormState> {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  if (!isEmailConfigured) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "Email is not set up. Add RESEND_API_KEY to your environment.",
+    };
+  }
+
+  const registrations = (await listRegistrations()).filter(
+    (r) => r.status === "interested",
+  );
+  if (registrations.length === 0) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "ok",
+      message: "Nobody is unpaid. Nothing was sent.",
+    };
+  }
+
+  const programs = new Map<string, Program | null>();
+  let sent = 0;
+  const failed: string[] = [];
+
+  for (const [index, registration] of registrations.entries()) {
+    if (index > 0) await wait(SEND_GAP_MS);
+
+    if (!programs.has(registration.program_id)) {
+      programs.set(
+        registration.program_id,
+        await getProgramById(registration.program_id),
+      );
+    }
+    const program = programs.get(registration.program_id);
+    if (!program) {
+      failed.push(`${registration.full_name} (their program is gone)`);
+      continue;
+    }
+
+    try {
+      await sendEmail(
+        registration.email,
+        paymentReminder(registration, program),
+      );
+      await markPaymentReminderSent(registration.id);
+      sent += 1;
+    } catch (error) {
+      failed.push(
+        `${registration.full_name} (${error instanceof Error ? error.message : "refused"})`,
+      );
+    }
+  }
+
+  revalidatePath("/admin");
+
+  const round = `${sent} reminder${sent === 1 ? "" : "s"} sent`;
+  if (failed.length === 0) {
+    return { ...EMPTY_FORM_STATE, status: "ok", message: `${round}.` };
+  }
+  return {
+    ...EMPTY_FORM_STATE,
+    status: "error",
+    message: `${round}. These were not: ${failed.join("; ")}. Their rows are unmarked, so sending the round again reaches them.`,
   };
 }
 

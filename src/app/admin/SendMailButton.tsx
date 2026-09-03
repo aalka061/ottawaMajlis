@@ -2,44 +2,50 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { EMPTY_FORM_STATE } from "@/lib/form-state";
-import { sendPaymentConfirmation } from "./actions";
+import { EMPTY_FORM_STATE, type FormState } from "@/lib/form-state";
 
-function Button({ again }: { again: boolean }) {
+type Action = (state: FormState, formData: FormData) => Promise<FormState>;
+
+function Button({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <button type="submit" className="btn btn-quiet" disabled={pending}>
-      {pending ? "Sending…" : again ? "Send it again" : "Send confirmation"}
+      {pending ? "Sending…" : label}
     </button>
   );
 }
 
 /**
- * Sends the one email that says their payment arrived and their place is
- * theirs. It is deliberately a button and not a consequence of marking someone
- * paid: you press it when you mean to write to them.
+ * One person, one letter, one button. Both of the mails the register sends —
+ * the payment confirmation and the payment reminder — are pressed rather than
+ * fired by a status change: marking someone paid is bookkeeping, writing to
+ * them is not, and you should be able to settle the money first and write
+ * when you mean to.
  *
- * Once it has gone out the button stays, reading "Send it again" beside the
- * date — the same person occasionally needs it a second time, and a button
- * that vanishes is worse than one that admits a second press.
+ * The button never disappears once it has been used. It reads "Send it again"
+ * beside the date it last went out — the confirmation is occasionally needed a
+ * second time, and a reminder is expected to be.
  */
-export function SendConfirmationButton({
+export function SendMailButton({
+  action,
   registrationId,
   sentAt,
+  label,
+  againLabel,
 }: {
+  action: Action;
   registrationId: string;
   sentAt: string | null;
+  label: string;
+  againLabel: string;
 }) {
-  const [state, action] = useActionState(
-    sendPaymentConfirmation,
-    EMPTY_FORM_STATE,
-  );
+  const [state, formAction] = useActionState(action, EMPTY_FORM_STATE);
 
   return (
-    <form action={action} className="grid gap-2">
+    <form action={formAction} className="grid gap-2">
       <input type="hidden" name="id" value={registrationId} />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Button again={Boolean(sentAt)} />
+        <Button label={sentAt ? againLabel : label} />
         {sentAt ? (
           <span className="font-mono text-[0.6875rem] tracking-[0.14em] text-slate uppercase">
             Sent{" "}

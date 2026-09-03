@@ -50,6 +50,9 @@ create table if not exists registrations (
   admin_note text,
   -- When the payment confirmation email went out, null until it has.
   payment_email_sent_at timestamptz,
+  -- When the last payment reminder went out, null until one has. Only the
+  -- latest is kept — a reminder may go more than once over a term.
+  payment_reminder_sent_at timestamptz,
   created_at timestamptz not null default now()
 );
 

@@ -32,6 +32,7 @@ export async function GET() {
     "their_note",
     "our_note",
     "registered_at",
+    "last_reminded_at",
   ];
   const rows = registrations.map((r) =>
     [
@@ -44,6 +45,7 @@ export async function GET() {
       r.note,
       r.admin_note,
       r.created_at,
+      r.payment_reminder_sent_at,
     ]
       .map(cell)
       .join(","),

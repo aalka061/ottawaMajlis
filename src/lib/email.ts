@@ -1,6 +1,6 @@
 import "server-only";
 import { Resend } from "resend";
-import { CONTACT_EMAIL } from "./site";
+import { CONTACT_EMAIL, ETRANSFER_EMAIL } from "./site";
 import type { Program, Registration } from "./types";
 
 /**
@@ -113,6 +113,70 @@ export function paymentConfirmation(
 
   return {
     subject: `Your place in ${program.title} is reserved`,
+    text: lines.join("\n"),
+    html,
+  };
+}
+
+/**
+ * The nudge for someone who registered and whose e-transfer has not arrived.
+ * It repeats the whole of what is being asked — the amount, the address, the
+ * name in the message — because a reminder that only says "you have not paid"
+ * makes the reader go and find the original mail.
+ *
+ * It ends by saying a transfer sent in the last day or two may have crossed
+ * with it. Transfers land days after they are sent and the register is only
+ * as current as the last time it was read, so some of these do go to people
+ * who have already paid; saying so is what keeps that from being an accusation.
+ */
+export function paymentReminder(
+  registration: Registration,
+  program: Program,
+): Message {
+  const name = firstName(registration.full_name);
+  const fee = program.fee_note;
+
+  const lines = [
+    `Assalamu alaikum ${name},`,
+    "",
+    `You registered for ${program.title}, and we have not yet seen your payment arrive. A place is held once the fee does, so this is the one thing left to do.`,
+    "",
+    "How to send it:",
+    `  Interac e-transfer to ${ETRANSFER_EMAIL}`,
+    ...(fee ? [`  ${fee}`] : []),
+    "  Put your full name in the transfer message, so we can match it to your registration.",
+    "",
+    "If you have already sent it, it has crossed with this note — nothing more is needed, and the confirmation follows once it lands.",
+    "",
+    "If you would rather not carry on, reply to this and we will take your name off the register. No explanation needed.",
+    "",
+    "Ottawa Majless",
+    CONTACT_EMAIL,
+  ];
+
+  const html = `<div style="margin:0;padding:24px;background:#f4f1ea;font-family:Georgia,'Times New Roman',serif;color:#1f2a24;">
+  <div style="max-width:34rem;margin:0 auto;background:#faf8f3;border:1px solid #c8a45c;padding:32px;">
+    <p style="margin:0;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9b2f2f;">Payment outstanding</p>
+    <p style="margin:20px 0 0;font-size:22px;line-height:1.4;">Assalamu alaikum ${escape(name)}, your place is not held yet.</p>
+    <p style="margin:20px 0 0;font-size:16px;line-height:1.6;">You registered for ${escape(program.title)}, and we have not yet seen your payment arrive. A place is held once the fee does, so this is the one thing left to do.</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:28px 0 0;border-top:1px solid #dcd4c4;border-bottom:1px solid #dcd4c4;">
+      <tr>
+        <td style="padding:16px 0;font-size:16px;line-height:1.7;">
+          <span style="display:block;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#5c6b63;padding-bottom:8px;">How to send it</span>
+          <span style="display:block;">Interac e-transfer to <a href="mailto:${ETRANSFER_EMAIL}" style="color:#9b2f2f;">${ETRANSFER_EMAIL}</a></span>
+          ${fee ? `<span style="display:block;">${escape(fee)}</span>` : ""}
+          <span style="display:block;">Put your full name in the transfer message, so we can match it to your registration.</span>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:24px 0 0;font-size:16px;line-height:1.6;">If you have already sent it, it has crossed with this note — nothing more is needed, and the confirmation follows once it lands.</p>
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.6;">If you would rather not carry on, reply to this and we will take your name off the register. No explanation needed.</p>
+    <p style="margin:32px 0 0;font-size:14px;line-height:1.6;color:#5c6b63;">Ottawa Majless<br><a href="mailto:${CONTACT_EMAIL}" style="color:#9b2f2f;">${CONTACT_EMAIL}</a></p>
+  </div>
+</div>`;
+
+  return {
+    subject: `Your place in ${program.title} is not held yet`,
     text: lines.join("\n"),
     html,
   };
