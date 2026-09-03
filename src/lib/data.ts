@@ -174,6 +174,19 @@ export async function markPaymentEmailSent(id: string) {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Records that a payment reminder went out, now. Called only after the send
+ * itself has succeeded. Re-sending overwrites the time: what you want to know
+ * before nudging someone again is when the last one was, not how many.
+ */
+export async function markPaymentReminderSent(id: string) {
+  const { error } = await supabase()
+    .from("registrations")
+    .update({ payment_reminder_sent_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
 export async function setAdminNote(id: string, admin_note: string) {
   const { error } = await supabase()
     .from("registrations")

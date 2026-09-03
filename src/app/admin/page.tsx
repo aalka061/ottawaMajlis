@@ -10,10 +10,26 @@ import {
   type RegistrationStatus,
 } from "@/lib/types";
 import { whatsappLink } from "@/lib/phone";
-import { removeRegistration, signOut, updateRegistration } from "./actions";
-import { SendConfirmationButton } from "./SendConfirmationButton";
+import {
+  removeRegistration,
+  sendPaymentConfirmation,
+  sendPaymentReminder,
+  signOut,
+  updateRegistration,
+} from "./actions";
+import { SendMailButton } from "./SendMailButton";
+import { SendRemindersButton } from "./SendRemindersButton";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * The one slow thing on this page is a round of reminders, paced to stay
+ * inside the mail server's rate limit — about a second a person. 60 seconds is
+ * the most a Vercel Hobby function is given. A round that runs past it stops
+ * part-way rather than failing as a whole: every letter that went out has
+ * already marked its own row, so pressing the button again picks up the rest.
+ */
+export const maxDuration = 60;
 
 const STATUS_TONE: Record<RegistrationStatus, string> = {
   interested: "border-brass text-brass",
@@ -42,13 +58,14 @@ function formatDate(iso: string) {
 }
 
 type Params = {
-  searchParams: Promise<{ confirm_delete?: string }>;
+  searchParams: Promise<{ confirm_delete?: string; remind_all?: string }>;
 };
 
 export default async function AdminPage({ searchParams }: Params) {
   if (!(await isSignedIn())) redirect("/admin/login");
 
-  const { confirm_delete: confirmDelete } = await searchParams;
+  const { confirm_delete: confirmDelete, remind_all: remindAll } =
+    await searchParams;
 
   if (!isSupabaseConfigured) {
     return (
@@ -81,6 +98,10 @@ export default async function AdminPage({ searchParams }: Params) {
     count: registrations.filter((r) => r.status === status).length,
   }));
 
+  // Everyone the reminder is for: registered, and the transfer has not
+  // arrived. Waitlisted and withdrawn people are not being asked for money.
+  const unpaid = registrations.filter((r) => r.status === "interested");
+
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
@@ -90,7 +111,12 @@ export default async function AdminPage({ searchParams }: Params) {
             The register
           </h1>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {unpaid.length > 0 && !remindAll ? (
+            <Link href="/admin?remind_all=1#remind-all" className="btn btn-quiet">
+              Remind the unpaid ({unpaid.length})
+            </Link>
+          ) : null}
           <Link href="/admin/export" className="btn btn-quiet">
             Export CSV
           </Link>
@@ -134,6 +160,72 @@ export default async function AdminPage({ searchParams }: Params) {
           </div>
         ))}
       </dl>
+
+      {remindAll ? (
+        <section
+          id="remind-all"
+          className="mt-12 border border-madder bg-paper p-6 sm:p-8"
+        >
+          <p className="rubric">Payment reminders</p>
+          {unpaid.length === 0 ? (
+            <>
+              <p className="mt-3 max-w-prose font-display text-2xl leading-snug">
+                Nobody is unpaid.
+              </p>
+              <p className="mt-3 max-w-prose text-sm text-slate">
+                Every registration has either been marked paid or is off the
+                register. There is nothing to send.
+              </p>
+              <div className="mt-5">
+                <Link href="/admin" className="btn btn-quiet">
+                  Back to the register
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mt-3 max-w-prose font-display text-2xl leading-snug">
+                Write to everyone who has registered and not paid?
+              </p>
+              <p className="mt-3 max-w-prose text-sm text-slate">
+                Each letter is built from that person&rsquo;s own program: the
+                fee, the e-transfer address, and the line about putting their
+                full name in the transfer message. It says outright that a
+                transfer sent in the last day or two has crossed with it, so
+                nobody who has just paid reads it as an accusation. Mark anyone
+                whose money has landed as paid first and they drop out of this
+                list.
+              </p>
+              <ul className="mt-6 divide-y divide-line border-y border-line">
+                {unpaid.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-3"
+                  >
+                    <span>
+                      {r.full_name}{" "}
+                      <span className="font-mono text-xs text-slate">
+                        {r.email}
+                      </span>
+                    </span>
+                    <span className="font-mono text-[0.6875rem] tracking-[0.14em] text-slate uppercase">
+                      {r.payment_reminder_sent_at
+                        ? `Last reminded ${formatDate(r.payment_reminder_sent_at)}`
+                        : "Not reminded yet"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6 flex flex-wrap items-start gap-4">
+                <SendRemindersButton count={unpaid.length} />
+                <Link href="/admin" className="btn btn-quiet">
+                  Not now
+                </Link>
+              </div>
+            </>
+          )}
+        </section>
+      ) : null}
 
       {registrations.length === 0 ? (
         <p className="mt-12 text-slate">
@@ -266,20 +358,49 @@ export default async function AdminPage({ searchParams }: Params) {
 
               {confirmDelete === r.id ? null : (
                 <div className="md:col-start-2">
-                  <p className="field-label">Payment confirmation</p>
-                  <p className="mt-1 max-w-prose text-sm text-slate">
-                    {r.status === "confirmed"
-                      ? "Tells them the transfer arrived and their place is held."
-                      : "Available once their status is Paid — place held."}
-                  </p>
-                  <div className="mt-3">
-                    {r.status === "confirmed" ? (
-                      <SendConfirmationButton
-                        registrationId={r.id}
-                        sentAt={r.payment_email_sent_at}
-                      />
-                    ) : null}
-                  </div>
+                  {r.status === "confirmed" ? (
+                    <>
+                      <p className="field-label">Payment confirmation</p>
+                      <p className="mt-1 max-w-prose text-sm text-slate">
+                        Tells them the transfer arrived and their place is held.
+                      </p>
+                      <div className="mt-3">
+                        <SendMailButton
+                          action={sendPaymentConfirmation}
+                          registrationId={r.id}
+                          sentAt={r.payment_email_sent_at}
+                          label="Send confirmation"
+                          againLabel="Send it again"
+                        />
+                      </div>
+                    </>
+                  ) : r.status === "interested" ? (
+                    <>
+                      <p className="field-label">Payment reminder</p>
+                      <p className="mt-1 max-w-prose text-sm text-slate">
+                        Asks them for the fee again — the amount, the address,
+                        and their name in the transfer message.
+                      </p>
+                      <div className="mt-3">
+                        <SendMailButton
+                          action={sendPaymentReminder}
+                          registrationId={r.id}
+                          sentAt={r.payment_reminder_sent_at}
+                          label="Send reminder"
+                          againLabel="Remind again"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="field-label">Email</p>
+                      <p className="mt-1 max-w-prose text-sm text-slate">
+                        Nothing to send: the reminder asks for the fee and the
+                        confirmation says a place is held, and neither is true
+                        of someone {statusLabel(r.status).toLowerCase()}.
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
             </li>
