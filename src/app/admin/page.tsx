@@ -455,10 +455,6 @@ export default async function AdminPage({ searchParams }: Params) {
                   nextDue={r.next_payment_due}
                   recordAction={recordPayment}
                   removeAction={removePayment}
-                  confirmRemoveHref={(paymentId) =>
-                    `/admin?void_payment=${paymentId}#r-${r.id}`
-                  }
-                  keepHref={`/admin#r-${r.id}`}
                   confirmingId={voidPayment}
                 />
               )}

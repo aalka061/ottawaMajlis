@@ -52,8 +52,6 @@ export function MoneyPanel({
   nextDue,
   recordAction,
   removeAction,
-  confirmRemoveHref,
-  keepHref,
   confirmingId,
 }: {
   registrationId: string;
@@ -62,14 +60,18 @@ export function MoneyPanel({
   nextDue: string | null;
   recordAction: Action;
   removeAction: (formData: FormData) => Promise<void>;
-  /** Builds the link that asks before a payment is taken back off the row. */
-  confirmRemoveHref: (paymentId: string) => string;
-  keepHref: string;
   /** The payment the page is currently asking about, if any. */
   confirmingId?: string;
 }) {
   const [state, formAction] = useActionState(recordAction, EMPTY_FORM_STATE);
   const err = state.fieldErrors;
+
+  // Built here rather than handed down. A server component cannot pass a
+  // function to a client one — React has nothing to serialise — and every
+  // part of these two links is already on this side of the boundary.
+  const back = `/admin#r-${registrationId}`;
+  const askBefore = (paymentId: string) =>
+    `/admin?void_payment=${paymentId}#r-${registrationId}`;
 
   // Nothing clears these fields by hand: React resets an uncontrolled form
   // once its action has run, and the register has re-rendered by then — so
@@ -119,7 +121,7 @@ export function MoneyPanel({
                       Remove it
                     </button>
                   </form>
-                  <Link href={keepHref} className="btn btn-quiet">
+                  <Link href={back} className="btn btn-quiet">
                     Keep it
                   </Link>
                 </div>
@@ -136,7 +138,7 @@ export function MoneyPanel({
                     ) : null}
                   </span>
                   <Link
-                    href={confirmRemoveHref(p.id)}
+                    href={askBefore(p.id)}
                     className="font-mono text-[0.6875rem] tracking-[0.14em] text-slate uppercase hover:text-madder"
                   >
                     Remove
