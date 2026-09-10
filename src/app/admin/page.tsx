@@ -1,22 +1,34 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isSignedIn } from "@/lib/auth";
-import { listPrograms, listRegistrations } from "@/lib/data";
+import {
+  listPayments,
+  listPrograms,
+  listRegistrations,
+  totalsByRegistration,
+} from "@/lib/data";
+import { formatMoney, settle, sumAmounts } from "@/lib/money";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import {
+  isOwing,
   STATUS_LABEL,
   STATUS_ORDER,
   statusLabel,
+  type Payment,
   type RegistrationStatus,
 } from "@/lib/types";
 import { whatsappLink } from "@/lib/phone";
 import {
+  recordPayment,
+  removePayment,
   removeRegistration,
+  sendPartPaymentReceipt,
   sendPaymentConfirmation,
   sendPaymentReminder,
   signOut,
   updateRegistration,
 } from "./actions";
+import { MoneyPanel } from "./MoneyPanel";
 import { SendMailButton } from "./SendMailButton";
 import { SendRemindersButton } from "./SendRemindersButton";
 
@@ -33,6 +45,7 @@ export const maxDuration = 60;
 
 const STATUS_TONE: Record<RegistrationStatus, string> = {
   interested: "border-brass text-brass",
+  partial: "border-madder text-madder",
   confirmed: "border-madder bg-madder text-paper",
   waitlist: "border-slate text-slate",
   withdrawn: "border-line text-slate line-through",
@@ -57,15 +70,32 @@ function formatDate(iso: string) {
   });
 }
 
+/**
+ * A `date` column has no time in it, so it is read back at noon rather than
+ * midnight. Midnight UTC is the evening before in Ottawa, and a due date that
+ * shows a day early is worse than one that is not shown at all.
+ */
+function formatDay(isoDate: string) {
+  return formatDate(`${isoDate}T12:00:00Z`);
+}
+
 type Params = {
-  searchParams: Promise<{ confirm_delete?: string; remind_all?: string }>;
+  searchParams: Promise<{
+    confirm_delete?: string;
+    remind_all?: string;
+    /** The payment the page is asking about before taking it off a row. */
+    void_payment?: string;
+  }>;
 };
 
 export default async function AdminPage({ searchParams }: Params) {
   if (!(await isSignedIn())) redirect("/admin/login");
 
-  const { confirm_delete: confirmDelete, remind_all: remindAll } =
-    await searchParams;
+  const {
+    confirm_delete: confirmDelete,
+    remind_all: remindAll,
+    void_payment: voidPayment,
+  } = await searchParams;
 
   if (!isSupabaseConfigured) {
     return (
@@ -87,20 +117,48 @@ export default async function AdminPage({ searchParams }: Params) {
     );
   }
 
-  const [registrations, programs] = await Promise.all([
+  const [registrations, programs, payments] = await Promise.all([
     listRegistrations(),
     listPrograms(),
+    listPayments(),
   ]);
   const programTitle = new Map(programs.map((p) => [p.id, p.title]));
+  const programFee = new Map(programs.map((p) => [p.id, p.fee_amount]));
+
+  // The whole payments table is read once and split up here. A term is tens
+  // of people with two or three transfers each, so one query and a pass over
+  // it beats a query a row.
+  const paidByRow = totalsByRegistration(payments);
+  const paymentsByRow = new Map<string, Payment[]>();
+  for (const payment of payments) {
+    const list = paymentsByRow.get(payment.registration_id) ?? [];
+    list.push(payment);
+    paymentsByRow.set(payment.registration_id, list);
+  }
+
+  /** Where one person's fee stands: what came in, against what is asked. */
+  const settlementFor = (r: (typeof registrations)[number]) =>
+    settle(paidByRow.get(r.id) ?? 0, programFee.get(r.program_id) ?? null);
 
   const counts = STATUS_ORDER.map((status) => ({
     status,
     count: registrations.filter((r) => r.status === status).length,
   }));
 
-  // Everyone the reminder is for: registered, and the transfer has not
-  // arrived. Waitlisted and withdrawn people are not being asked for money.
-  const unpaid = registrations.filter((r) => r.status === "interested");
+  // Everyone the reminder is for: still owing, whether nothing has arrived or
+  // only part of it. Waitlisted and withdrawn people are not asked for money.
+  const owing = registrations.filter((r) => isOwing(r.status));
+
+  // The money across the register, counting only the people whose fee is
+  // actually being collected — a withdrawn person's part payment is a refund
+  // waiting to go out, not income, and belongs in neither figure.
+  const live = registrations.filter(
+    (r) => isOwing(r.status) || r.status === "confirmed",
+  );
+  const collected = sumAmounts(live.map((r) => paidByRow.get(r.id) ?? 0));
+  const outstanding = sumAmounts(
+    live.map((r) => settlementFor(r).outstanding ?? 0),
+  );
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
@@ -112,9 +170,9 @@ export default async function AdminPage({ searchParams }: Params) {
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          {unpaid.length > 0 && !remindAll ? (
+          {owing.length > 0 && !remindAll ? (
             <Link href="/admin?remind_all=1#remind-all" className="btn btn-quiet">
-              Remind the unpaid ({unpaid.length})
+              Remind who owes ({owing.length})
             </Link>
           ) : null}
           <Link href="/admin/export" className="btn btn-quiet">
@@ -152,7 +210,7 @@ export default async function AdminPage({ searchParams }: Params) {
         </ul>
       </section>
 
-      <dl className="mt-12 grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-4">
+      <dl className="mt-12 grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-3 lg:grid-cols-5">
         {counts.map(({ status, count }) => (
           <div key={status} className="bg-paper px-4 py-5">
             <dt className="field-label">{STATUS_LABEL[status]}</dt>
@@ -161,19 +219,36 @@ export default async function AdminPage({ searchParams }: Params) {
         ))}
       </dl>
 
+      <dl className="-mt-px grid grid-cols-2 gap-px border border-line bg-line">
+        <div className="bg-paper px-4 py-5">
+          <dt className="field-label">Received</dt>
+          <dd className="mt-2 font-mono text-3xl">{formatMoney(collected)}</dd>
+        </div>
+        <div className="bg-paper px-4 py-5">
+          <dt className="field-label">Still owed</dt>
+          <dd className="mt-2 font-mono text-3xl">{formatMoney(outstanding)}</dd>
+        </div>
+      </dl>
+      <p className="mt-3 max-w-prose text-sm text-slate">
+        Across everyone registered, part paid, or paid — the waitlist and the
+        withdrawn are left out of both figures. What is still owed is worked
+        out from the fee amount on each program, so a program with no amount
+        set adds nothing to it.
+      </p>
+
       {remindAll ? (
         <section
           id="remind-all"
           className="mt-12 border border-madder bg-paper p-6 sm:p-8"
         >
           <p className="rubric">Payment reminders</p>
-          {unpaid.length === 0 ? (
+          {owing.length === 0 ? (
             <>
               <p className="mt-3 max-w-prose font-display text-2xl leading-snug">
-                Nobody is unpaid.
+                Nobody owes anything.
               </p>
               <p className="mt-3 max-w-prose text-sm text-slate">
-                Every registration has either been marked paid or is off the
+                Every registration has either settled its fee or is off the
                 register. There is nothing to send.
               </p>
               <div className="mt-5">
@@ -185,19 +260,21 @@ export default async function AdminPage({ searchParams }: Params) {
           ) : (
             <>
               <p className="mt-3 max-w-prose font-display text-2xl leading-snug">
-                Write to everyone who has registered and not paid?
+                Write to everyone whose fee is not settled?
               </p>
               <p className="mt-3 max-w-prose text-sm text-slate">
-                Each letter is built from that person&rsquo;s own program: the
-                fee, the e-transfer address, and the line about putting their
-                full name in the transfer message. It says outright that a
-                transfer sent in the last day or two has crossed with it, so
-                nobody who has just paid reads it as an accusation. Mark anyone
-                whose money has landed as paid first and they drop out of this
-                list.
+                Each letter is built from that person&rsquo;s own program and
+                their own payments: someone who has sent nothing is asked for
+                the fee, and someone part way through is asked for their
+                balance and thanked for what already arrived. Every letter
+                carries the e-transfer address and the line about putting a
+                full name in the message, and says outright that a transfer
+                sent in the last day or two has crossed with it. Record the
+                money that has landed first and whoever is settled drops out
+                of this list.
               </p>
               <ul className="mt-6 divide-y divide-line border-y border-line">
-                {unpaid.map((r) => (
+                {owing.map((r) => (
                   <li
                     key={r.id}
                     className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-3"
@@ -209,6 +286,9 @@ export default async function AdminPage({ searchParams }: Params) {
                       </span>
                     </span>
                     <span className="font-mono text-[0.6875rem] tracking-[0.14em] text-slate uppercase">
+                      {settlementFor(r).outstanding !== null
+                        ? `${formatMoney(settlementFor(r).outstanding ?? 0)} owed · `
+                        : ""}
                       {r.payment_reminder_sent_at
                         ? `Last reminded ${formatDate(r.payment_reminder_sent_at)}`
                         : "Not reminded yet"}
@@ -217,7 +297,7 @@ export default async function AdminPage({ searchParams }: Params) {
                 ))}
               </ul>
               <div className="mt-6 flex flex-wrap items-start gap-4">
-                <SendRemindersButton count={unpaid.length} />
+                <SendRemindersButton count={owing.length} />
                 <Link href="/admin" className="btn btn-quiet">
                   Not now
                 </Link>
@@ -277,6 +357,11 @@ export default async function AdminPage({ searchParams }: Params) {
                   registered {formatDate(r.created_at)}
                   {r.heard_from ? ` · heard via ${r.heard_from}` : ""}
                 </p>
+                {r.next_payment_due && !settlementFor(r).settled ? (
+                  <p className="mt-2 font-mono text-xs text-madder">
+                    Next payment due {formatDay(r.next_payment_due)}
+                  </p>
+                ) : null}
                 {r.note ? (
                   <p className="mt-3 max-w-prose border-l-2 border-line pl-3 text-sm text-slate">
                     {r.note}
@@ -329,6 +414,12 @@ export default async function AdminPage({ searchParams }: Params) {
                         </option>
                       ))}
                     </select>
+                    <p className="mt-1.5 max-w-prose text-sm text-slate">
+                      The first three set themselves from the money below.
+                      Change one by hand for a fee settled some other way —
+                      recording a payment will set it again from what has
+                      arrived.
+                    </p>
                   </div>
                   <div>
                     <label className="field-label" htmlFor={`note-${r.id}`}>
@@ -339,7 +430,7 @@ export default async function AdminPage({ searchParams }: Params) {
                       name="admin_note"
                       defaultValue={r.admin_note ?? ""}
                       className="field-input mt-2"
-                      placeholder="e-transfer received 12 Jan, $150 for the term"
+                      placeholder="Paying in two instalments, agreed by phone"
                     />
                   </div>
                   <div className="flex flex-wrap items-center gap-5">
@@ -357,6 +448,22 @@ export default async function AdminPage({ searchParams }: Params) {
               )}
 
               {confirmDelete === r.id ? null : (
+                <MoneyPanel
+                  registrationId={r.id}
+                  payments={paymentsByRow.get(r.id) ?? []}
+                  settlement={settlementFor(r)}
+                  nextDue={r.next_payment_due}
+                  recordAction={recordPayment}
+                  removeAction={removePayment}
+                  confirmRemoveHref={(paymentId) =>
+                    `/admin?void_payment=${paymentId}#r-${r.id}`
+                  }
+                  keepHref={`/admin#r-${r.id}`}
+                  confirmingId={voidPayment}
+                />
+              )}
+
+              {confirmDelete === r.id ? null : (
                 <div className="md:col-start-2">
                   {r.status === "confirmed" ? (
                     <>
@@ -371,6 +478,31 @@ export default async function AdminPage({ searchParams }: Params) {
                           sentAt={r.payment_email_sent_at}
                           label="Send confirmation"
                           againLabel="Send it again"
+                        />
+                      </div>
+                    </>
+                  ) : r.status === "partial" ? (
+                    <>
+                      <p className="field-label">Their part payment</p>
+                      <p className="mt-1 max-w-prose text-sm text-slate">
+                        The receipt thanks them for what arrived and names the
+                        balance and the next date. The reminder asks for the
+                        balance — send that one when a date has gone by.
+                      </p>
+                      <div className="mt-3 grid gap-4">
+                        <SendMailButton
+                          action={sendPartPaymentReceipt}
+                          registrationId={r.id}
+                          sentAt={r.part_payment_email_sent_at}
+                          label="Send receipt"
+                          againLabel="Send it again"
+                        />
+                        <SendMailButton
+                          action={sendPaymentReminder}
+                          registrationId={r.id}
+                          sentAt={r.payment_reminder_sent_at}
+                          label="Ask for the balance"
+                          againLabel="Ask again"
                         />
                       </div>
                     </>

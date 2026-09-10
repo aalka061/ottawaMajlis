@@ -191,6 +191,21 @@ export function ProgramForm({ program }: { program: Program }) {
           />
         </Field>
         <Field
+          name="fee_amount"
+          label="Fee amount"
+          hint="The same fee as a plain number, e.g. 150. Never shown on the site — the register works balances out from it, so a part payment knows what is still owed. Leave it empty and the register records what arrives without claiming what is left."
+          error={err.fee_amount}
+        >
+          <input
+            id="fee_amount"
+            name="fee_amount"
+            inputMode="decimal"
+            placeholder="150"
+            defaultValue={program.fee_amount ?? ""}
+            className="field-input"
+          />
+        </Field>
+        <Field
           name="materials_note"
           label="What has not been sent yet"
           hint="One line, read only in the payment confirmation email — never on the site. Say when the Zoom link and materials come, e.g. closer to 15 September."

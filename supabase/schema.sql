@@ -20,6 +20,10 @@ create table if not exists programs (
   location text not null default '',
   audience_note text not null default '',
   fee_note text not null default '',
+  -- The fee as a number, beside the prose above. The prose is what visitors
+  -- read; this is what balances are worked out from in the register. Null
+  -- means no amount is set, and no balance is claimed.
+  fee_amount numeric(10, 2) check (fee_amount is null or fee_amount >= 0),
   -- Read only in the payment confirmation email, not on the site: what
   -- has not been sent yet, and roughly when it will be.
   materials_note text not null default '',
@@ -43,18 +47,41 @@ create table if not exists registrations (
   phone text,
   heard_from text,
   note text,
-  -- Two live states: they have registered, and they have paid. Payment is what
-  -- holds a place, so there is nothing in between.
+  -- Three live states: they have registered, some of the fee has arrived, and
+  -- the whole of it has. Payment is what holds a place, so the middle state is
+  -- money on the table and a balance still owed.
   status text not null default 'interested'
-    check (status in ('interested', 'confirmed', 'waitlist', 'withdrawn')),
+    check (status in ('interested', 'partial', 'confirmed', 'waitlist', 'withdrawn')),
   admin_note text,
   -- When the payment confirmation email went out, null until it has.
   payment_email_sent_at timestamptz,
   -- When the last payment reminder went out, null until one has. Only the
   -- latest is kept — a reminder may go more than once over a term.
   payment_reminder_sent_at timestamptz,
+  -- When the last part-payment receipt went out, null until one has. Like the
+  -- reminder it may go once per instalment, so only the latest is kept.
+  part_payment_email_sent_at timestamptz,
+  -- When the next instalment is expected, null when none is. An arrangement,
+  -- not a rule: nothing enforces it and nothing is sent on it.
+  next_payment_due date,
   created_at timestamptz not null default now()
 );
+
+-- Every transfer that has arrived, one row each. A list rather than a running
+-- total: instalments land on their own days, and the question you ask of the
+-- register is what came in and when.
+create table if not exists payments (
+  id uuid primary key default gen_random_uuid(),
+  registration_id uuid not null references registrations (id) on delete cascade,
+  amount numeric(10, 2) not null check (amount > 0),
+  -- The day the money landed, which is not the day it was recorded.
+  received_on date not null default current_date,
+  note text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists payments_registration_idx
+  on payments (registration_id, received_on);
 
 -- One registration per person per program.
 create unique index if not exists registrations_program_email_idx
@@ -64,13 +91,14 @@ create index if not exists registrations_status_idx on registrations (status);
 
 alter table programs enable row level security;
 alter table registrations enable row level security;
+alter table payments enable row level security;
 
 -- Mapping the Divine. Edit the text here or in the Supabase table editor.
 -- The dates and location are placeholders — fill them in. Capacity is an
 -- internal target only; the site never shows it and registration stays open.
 insert into programs (
   slug, title, tagline, term, lede, summary, book_note, format_note, meeting_note,
-  location, audience_note, fee_note, materials_note, capacity, teacher_name, teacher_bio, teacher_photo,
+  location, audience_note, fee_note, fee_amount, materials_note, capacity, teacher_name, teacher_bio, teacher_photo,
   teacher_url, teacher_credentials, status, explore
 ) values (
   'mapping-the-divine',
@@ -85,6 +113,7 @@ insert into programs (
   'Online, plus one in-person session per month',
   'Open to all — best suited to 16 and older',
   '$150 for the whole course (2 months)',
+  150,
   'The Zoom link and the course materials come to you closer to 15 September.',
   20,
   'Shaykh Zakaria AbdilAziz',

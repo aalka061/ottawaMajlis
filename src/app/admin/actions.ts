@@ -9,27 +9,38 @@ import {
   startSession,
 } from "@/lib/auth";
 import {
+  addPayment,
+  deletePayment,
   deleteRegistration,
   getProgramById,
   getRegistrationById,
+  listPayments,
+  listPaymentsFor,
   listRegistrations,
+  markPartPaymentEmailSent,
   markPaymentEmailSent,
   markPaymentReminderSent,
   setAdminNote,
+  setNextPaymentDue,
   setProgramFields,
   setRegistrationStatus,
+  totalsByRegistration,
   type ProgramEdit,
 } from "@/lib/data";
 import {
   isEmailConfigured,
+  partPaymentReceipt,
   paymentConfirmation,
   paymentReminder,
   sendEmail,
 } from "@/lib/email";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/form-state";
+import { formatMoney, parseAmount, settle, sumAmounts } from "@/lib/money";
 import {
+  isOwing,
   STATUS_ORDER,
   type Program,
+  type Registration,
   type RegistrationStatus,
 } from "@/lib/types";
 
@@ -63,6 +74,152 @@ export async function updateRegistration(formData: FormData) {
   }
   await setAdminNote(id, note);
   revalidatePath("/admin");
+}
+
+/**
+ * Puts the status back in step with the money on the row: the whole fee has
+ * arrived and the place is held, some of it has and a balance is owed, or
+ * none of it has and they are where they started.
+ *
+ * Status follows the money because the money is the fact — keeping the two in
+ * step by hand is how a register comes to say someone owes a fee they settled
+ * in November. Waitlist and withdrawn are left exactly as they are: those say
+ * something about the person, not about their balance, and a refund waiting
+ * to go out should not quietly readmit anyone.
+ *
+ * With no fee amount on the program nobody can be settled, only part paid.
+ * That is honest — without a number there is nothing to have met.
+ */
+async function syncStatusToPayments(registration: Registration) {
+  if (registration.status === "waitlist" || registration.status === "withdrawn") {
+    return;
+  }
+
+  const [payments, program] = await Promise.all([
+    listPaymentsFor(registration.id),
+    getProgramById(registration.program_id),
+  ]);
+  const { settled, partial } = settle(
+    sumAmounts(payments.map((p) => p.amount)),
+    program?.fee_amount ?? null,
+  );
+
+  const next: RegistrationStatus = settled
+    ? "confirmed"
+    : partial
+      ? "partial"
+      : "interested";
+  if (next !== registration.status) {
+    await setRegistrationStatus(registration.id, next);
+  }
+}
+
+/** A date input posts YYYY-MM-DD, or "" when it is empty. */
+const A_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * What arrived and when the next is expected — the two things you write down
+ * after reading the inbox, in one press.
+ *
+ * The amount may be left empty, and then nothing is recorded and only the
+ * date moves: an arrangement can be agreed before any of it is sent, and
+ * changed later without inventing a transfer to hang the change on.
+ *
+ * Recording is the bookkeeping. The status follows from it on its own, and
+ * nothing is written to the person — the letter beside their name is a
+ * separate press, the same way the confirmation always was.
+ */
+export async function recordPayment(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return EMPTY_FORM_STATE;
+
+  const fieldErrors: Record<string, string> = {};
+
+  const amountText = String(formData.get("amount") ?? "").trim();
+  const amount = amountText === "" ? null : parseAmount(amountText);
+  if (amountText !== "" && amount === null) {
+    fieldErrors.amount = "An amount of money, more than zero.";
+  }
+
+  // Empty means today, which is the common case: you are writing it down as
+  // you read the inbox, on the day you read it.
+  const receivedOn =
+    String(formData.get("received_on") ?? "").trim() ||
+    new Date().toISOString().slice(0, 10);
+  if (!A_DATE.test(receivedOn)) {
+    fieldErrors.received_on = "A date, as YYYY-MM-DD.";
+  }
+
+  // Absent and empty are not the same thing. The field on the page always
+  // posts, empty or not, so an empty one clears the date on purpose; a form
+  // that never carried the field at all leaves it alone — which is the same
+  // guard the program editor grew after a stale page blanked a column.
+  const dueRaw = formData.get("next_payment_due");
+  const dueText = dueRaw === null ? undefined : String(dueRaw).trim();
+  if (dueText !== undefined && dueText !== "" && !A_DATE.test(dueText)) {
+    fieldErrors.next_payment_due = "A date, as YYYY-MM-DD.";
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return { status: "error", message: "Nothing was saved.", fieldErrors };
+  }
+
+  const registration = await getRegistrationById(id);
+  if (!registration) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "That registration is no longer in the database.",
+    };
+  }
+
+  if (amount !== null) {
+    await addPayment({
+      registration_id: id,
+      amount,
+      received_on: receivedOn,
+      note: String(formData.get("payment_note") ?? "").trim() || null,
+    });
+  }
+
+  if (dueText !== undefined) await setNextPaymentDue(id, dueText || null);
+  await syncStatusToPayments(registration);
+  revalidatePath("/admin");
+
+  return {
+    ...EMPTY_FORM_STATE,
+    status: "ok",
+    message:
+      amount === null
+        ? "Saved. Nothing was recorded as received — the amount was empty."
+        : `${formatMoney(amount)} recorded.`,
+  };
+}
+
+/**
+ * Takes a payment back off the row — for a figure typed wrong, which is the
+ * only reason to. The status is put back in step afterwards, so removing the
+ * transfer that settled someone returns them to a balance owed.
+ */
+export async function removePayment(formData: FormData) {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const paymentId = String(formData.get("payment_id") ?? "");
+  const id = String(formData.get("id") ?? "");
+  if (!paymentId || !id) return;
+
+  await deletePayment(paymentId);
+
+  const registration = await getRegistrationById(id);
+  if (registration) await syncStatusToPayments(registration);
+
+  revalidatePath("/admin");
+  redirect(`/admin#r-${id}`);
 }
 
 /**
@@ -173,14 +330,15 @@ export async function sendPaymentReminder(
   }
 
   // The reminder says their place is not held, which stops being true the
-  // moment you mark them paid. Waitlisted and withdrawn people are not being
-  // asked for money either, so the nudge only fits an unpaid registration.
-  if (registration.status !== "interested") {
+  // moment the fee is settled. Waitlisted and withdrawn people are not being
+  // asked for money either, so the nudge fits the two states that still owe:
+  // registered with nothing in, and part paid with a balance standing.
+  if (!isOwing(registration.status)) {
     return {
       ...EMPTY_FORM_STATE,
       status: "error",
       message:
-        "The reminder only goes to someone whose status is Registered — unpaid. It asks them for the fee, which is the wrong thing to say to anyone else.",
+        "The reminder only goes to someone who still owes — Registered — unpaid, or Part paid — balance due. It asks them for money, which is the wrong thing to say to anyone else.",
     };
   }
 
@@ -193,8 +351,15 @@ export async function sendPaymentReminder(
     };
   }
 
+  const paid = sumAmounts(
+    (await listPaymentsFor(id)).map((payment) => payment.amount),
+  );
+
   try {
-    await sendEmail(registration.email, paymentReminder(registration, program));
+    await sendEmail(
+      registration.email,
+      paymentReminder(registration, program, settle(paid, program.fee_amount)),
+    );
   } catch (error) {
     return {
       ...EMPTY_FORM_STATE,
@@ -204,6 +369,94 @@ export async function sendPaymentReminder(
   }
 
   await markPaymentReminderSent(id);
+  revalidatePath("/admin");
+
+  return {
+    ...EMPTY_FORM_STATE,
+    status: "ok",
+    message: `Sent to ${registration.email}.`,
+  };
+}
+
+/**
+ * The receipt for one instalment: this much arrived, this much remains, and
+ * this is when the next is expected. It is the letter the "next payment" date
+ * exists for — the arrangement written back to the person who made it.
+ *
+ * Pressed rather than fired by recording a payment, for the same reason the
+ * confirmation always was: settling the money and writing to someone are two
+ * acts, and you should be able to do the first at the inbox and the second
+ * when you mean to.
+ */
+export async function sendPartPaymentReceipt(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return EMPTY_FORM_STATE;
+
+  if (!isEmailConfigured) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "Email is not set up. Add RESEND_API_KEY to your environment.",
+    };
+  }
+
+  const registration = await getRegistrationById(id);
+  if (!registration) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "That registration is no longer in the database.",
+    };
+  }
+
+  const program = await getProgramById(registration.program_id);
+  if (!program) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "Their program is no longer in the database.",
+    };
+  }
+
+  const payments = await listPaymentsFor(id);
+  const settlement = settle(
+    sumAmounts(payments.map((payment) => payment.amount)),
+    program.fee_amount,
+  );
+
+  // The letter thanks them for an instalment and names a balance. Both need
+  // money to have arrived and a balance to still stand; without either it is
+  // the confirmation or the reminder that fits, not this.
+  if (!settlement.partial) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message:
+        settlement.settled
+          ? "Their fee is settled. Send the payment confirmation instead — this letter names a balance that is no longer owed."
+          : "Nothing has arrived from them yet. Record a payment first, or send the reminder instead.",
+    };
+  }
+
+  try {
+    await sendEmail(
+      registration.email,
+      partPaymentReceipt(registration, program, payments, settlement),
+    );
+  } catch (error) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: `It was not sent: ${error instanceof Error ? error.message : "the mail server refused it"}. Nothing was recorded, so you can try again.`,
+    };
+  }
+
+  await markPartPaymentEmailSent(id);
   revalidatePath("/admin");
 
   return {
@@ -224,9 +477,10 @@ const wait = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * The whole round: a reminder to everyone who has registered and not paid,
- * each one written from their own program so a person on last term's course
- * is not sent this term's fee.
+ * The whole round: a reminder to everyone who still owes, each one written
+ * from their own program and their own payments — so a person on last term's
+ * course is not sent this term's fee, and someone half way through paying is
+ * asked for their balance rather than the whole of it.
  *
  * Every send is marked on its own row as it succeeds, so a round that dies
  * halfway leaves an honest register: pressing it again writes to whoever is
@@ -247,17 +501,21 @@ export async function sendPaymentReminders(
     };
   }
 
-  const registrations = (await listRegistrations()).filter(
-    (r) => r.status === "interested",
+  const registrations = (await listRegistrations()).filter((r) =>
+    isOwing(r.status),
   );
   if (registrations.length === 0) {
     return {
       ...EMPTY_FORM_STATE,
       status: "ok",
-      message: "Nobody is unpaid. Nothing was sent.",
+      message: "Nobody owes anything. Nothing was sent.",
     };
   }
 
+  // One read of the payments table for the whole round, rather than one a
+  // person: each letter names what that person has already sent, so every
+  // row needs its total and none of them needs a query of its own.
+  const paidByRow = totalsByRegistration(await listPayments());
   const programs = new Map<string, Program | null>();
   let sent = 0;
   const failed: string[] = [];
@@ -280,7 +538,11 @@ export async function sendPaymentReminders(
     try {
       await sendEmail(
         registration.email,
-        paymentReminder(registration, program),
+        paymentReminder(
+          registration,
+          program,
+          settle(paidByRow.get(registration.id) ?? 0, program.fee_amount),
+        ),
       );
       await markPaymentReminderSent(registration.id);
       sent += 1;
@@ -370,6 +632,23 @@ export async function updateProgram(
     fieldErrors.capacity = "A whole number, 1 or more.";
   }
 
+  // Empty on purpose is a real answer here — a program with no set amount —
+  // so "" clears the column rather than failing validation.
+  const feeText = text(formData, "fee_amount");
+  let fee_amount: number | null | undefined;
+  if (feeText !== undefined) {
+    if (feeText === "") {
+      fee_amount = null;
+    } else {
+      const parsed = parseAmount(feeText);
+      if (parsed === null) {
+        fieldErrors.fee_amount = "An amount of money, or empty for none.";
+      } else {
+        fee_amount = parsed;
+      }
+    }
+  }
+
   const status = text(formData, "status") as ProgramEdit["status"] | undefined;
   if (status !== undefined && !PROGRAM_STATUS.includes(status)) {
     fieldErrors.status = "Pick a status.";
@@ -396,6 +675,7 @@ export async function updateProgram(
     location: text(formData, "location"),
     audience_note: text(formData, "audience_note"),
     fee_note: text(formData, "fee_note"),
+    fee_amount,
     materials_note: text(formData, "materials_note"),
     capacity,
     registration_note: textOrNull(formData, "registration_note"),

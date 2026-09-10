@@ -18,10 +18,14 @@ Running cost: **$0/year**, plus a domain if you want one (~$12–15/year).
 | `/admin` | The register: everyone who signed up, their status, your notes, the payment reminder and confirmation emails, CSV export, delete |
 | `/admin/login` | One shared password |
 
-A registration has two live states: **registered — unpaid** (they submitted the
-form) → **paid — place held** (their e-transfer arrived). Two others are there
-when you need them: **waitlist** and **withdrawn**. The database still stores
-the first one under its old name, `interested`.
+A registration has three live states: **registered — unpaid** (they submitted
+the form) → **part paid — balance due** (some of the fee arrived) → **paid —
+place held** (all of it did). Two others are there when you need them:
+**waitlist** and **withdrawn**. The database still stores the first one under
+its old name, `interested`.
+
+You do not set the first three by hand. They follow the money: record a
+payment against someone and their status moves to match what has arrived.
 
 There used to be a **contacted** state in the middle, from when you messaged
 people to ask for the fee. It is gone: the page tells people where to send the
@@ -95,6 +99,10 @@ Supabase table editor. The fields that matter:
 - `format_note`, `meeting_note`, `location`, `audience_note`, `fee_note` —
   the rows beside the summary in "The course", shown as written. An empty one
   drops its row.
+- `fee_amount` — the same fee as a plain number, e.g. `150`. Never shown on
+  the site. It is what the register works balances out from, so a part payment
+  knows what is still owed. Leave it empty and the register records what
+  arrives without claiming what is left.
 - `capacity` — the size of the group. This is what the circle draws; it is
   not a count of registrations.
 - `explore` — a JSON array of `{"title": "...", "body": "..."}` for the "What
@@ -117,11 +125,58 @@ sees after they submit. Change it there and it changes everywhere. Turn on
 autodeposit for that inbox so nobody has to guess a security question.
 
 People are asked to put their full name in the transfer message, which is how
-you match a transfer to a row. When it lands, set their status to **Paid —
-place held**.
+you match a transfer to a row. When it lands, record it against them under
+**The money** — the status follows on its own.
 
 If you later want cards, the place to add it is a checkout beside the
 e-transfer panel in `src/components/PaymentPanel.tsx`.
+
+## Paying in instalments
+
+Not everyone sends $150 at once. Under each name in the register there is
+**The money**: every transfer that has arrived, what that leaves owing, and
+the day the next one is expected.
+
+Recording a transfer takes an **amount**, the **day it was received** (today,
+unless you say otherwise — the day money lands is rarely the day you read the
+inbox), an optional note for what it was, and the **next payment due** date.
+Press Record and the status moves itself: something in and a balance standing
+makes them **part paid — balance due**, and the transfer that meets the fee
+makes them **paid — place held**. The whole thing is worked out from
+`fee_amount` on their program, so set that first or no balance can be known.
+
+The amount may be left empty. Then nothing is recorded as received and only
+the due date moves — for an arrangement agreed before any of it has been sent,
+or one that changes later.
+
+**Remove** takes a payment back off a row, and asks first. It is for a figure
+typed wrong; the status is put back in step afterwards, so removing the
+transfer that settled someone returns them to a balance owed.
+
+Two figures sit at the top of the register: **received** and **still owed**,
+across everyone registered, part paid, or paid. The waitlist and the withdrawn
+are in neither — a withdrawn person's part payment is a refund waiting to go
+out, not income. The CSV export carries the same numbers a person at a time,
+as plain figures a spreadsheet will sum.
+
+The status dropdown still lets you set any of these by hand, for a fee settled
+some other way — cash, or a transfer you would rather not itemise. Recording a
+payment afterwards will set it again from what has arrived.
+
+### Writing to someone part way through
+
+Beside anyone **part paid** there are two letters instead of one.
+
+**Send receipt** thanks them for the instalment that arrived, names what has
+come and what remains, and gives the date the next one is expected. It is the
+letter the due date exists for — the arrangement written back to the person
+who made it. Send it when you record a payment, or not at all; nothing is
+automatic.
+
+**Ask for the balance** is the ordinary reminder, and it knows about their
+payments: it asks for the outstanding amount rather than the fee, and thanks
+them for what already arrived first, so it cannot read as though their
+instalments went unnoticed. Send it when a due date has gone by.
 
 ## Reminding someone who has not paid
 
@@ -140,19 +195,20 @@ unlike the confirmation, a reminder is expected to be sent more than once over
 a term. Only the latest date is kept; what you want to know before nudging
 someone again is how long ago the last one was.
 
-**Remind the unpaid** at the top of the register does the whole round at once.
-It shows you who is about to be written to, and when each of them was last
-reminded, before it sends anything. Each letter is built from that person's own
-program, so someone still unpaid from a previous term is not sent this term's
-fee. Sends are paced to stay inside Resend's rate limit, about a second each,
+**Remind who owes** at the top of the register does the whole round at once.
+It shows you who is about to be written to, what each of them owes, and when
+each was last reminded, before it sends anything. Each letter is built from
+that person's own program and their own payments, so someone still unpaid from
+a previous term is not sent this term's fee, and someone half way through
+paying is asked for their balance rather than the whole of it. Sends are paced to stay inside Resend's rate limit, about a second each,
 and every row is marked as its own send succeeds — so if the round fails
 halfway, pressing it again reaches whoever is still unpaid.
 
 Nothing goes out on a schedule. A reminder is sent when you decide to send one.
 
-The button is only there for **Registered — unpaid**. Someone paid gets the
-confirmation instead, and nobody waitlisted or withdrawn is being asked for
-money.
+The button is there for the two states that still owe — **registered — unpaid**
+and **part paid — balance due**. Someone paid gets the confirmation instead,
+and nobody waitlisted or withdrawn is being asked for money.
 
 ## Confirming a payment
 
@@ -194,7 +250,7 @@ Replies do not go to `EMAIL_FROM`. Every message sets Reply-To to
 in — so someone answering the confirmation reaches you where you already look.
 
 The sending itself lives in `src/lib/email.ts`, kept apart from the wording of
-any one message: `sendEmail` is the plumbing, `paymentConfirmation` and
-`paymentReminder` are the two letters. A later feature that writes to everyone
+any one message: `sendEmail` is the plumbing, and `paymentConfirmation`,
+`paymentReminder` and `partPaymentReceipt` are the three letters. A later feature that writes to everyone
 on a program — schedule changes, the Zoom link when it exists — adds its own
 message beside them and sends it the same way.
