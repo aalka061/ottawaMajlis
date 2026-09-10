@@ -1,7 +1,8 @@
 import "server-only";
 import { Resend } from "resend";
+import { formatMoney, type Settlement } from "./money";
 import { CONTACT_EMAIL, ETRANSFER_EMAIL } from "./site";
-import type { Program, Registration } from "./types";
+import type { Payment, Program, Registration } from "./types";
 
 /**
  * Who the mail comes from. The majless has no domain of its own yet, so it
@@ -61,6 +62,67 @@ function firstName(fullName: string) {
 }
 
 /**
+ * A date as someone reads it: 12 Feb 2026. The column is a plain date with no
+ * time in it, so it is read back at noon UTC rather than midnight — midnight
+ * in UTC is the evening before in Ottawa, and a due date that shows a day
+ * early is worse than useless.
+ */
+function readDate(isoDate: string) {
+  return new Date(`${isoDate}T12:00:00Z`).toLocaleDateString("en-CA", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+/**
+ * The two or three lines that say where someone's fee stands. Written the same
+ * way in every letter that mentions money, so nobody has to reconcile two
+ * different tellings of their own balance.
+ *
+ * A fee of null is a program with no amount set: what arrived is named, what
+ * remains is not, because it is not known.
+ */
+function balanceLines(settlement: Settlement, nextDue: string | null) {
+  const lines = [`Received so far: ${formatMoney(settlement.paid)}`];
+  if (settlement.fee !== null) {
+    lines.push(`The fee: ${formatMoney(settlement.fee)}`);
+    if (settlement.outstanding !== null && settlement.outstanding > 0) {
+      lines.push(`Still to come: ${formatMoney(settlement.outstanding)}`);
+    }
+  }
+  if (nextDue) lines.push(`Next payment: ${readDate(nextDue)}`);
+  return lines;
+}
+
+/**
+ * The rule-topped block every one of these letters is built from: a small
+ * caption and a run of lines under it. `rows` is HTML — most callers hand it
+ * plain text through `block` below, and the ones with a mailto link in them
+ * build their own spans.
+ */
+function rawBlock(heading: string, rows: string[]) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:28px 0 0;border-top:1px solid #dcd4c4;border-bottom:1px solid #dcd4c4;">
+      <tr>
+        <td style="padding:16px 0;font-size:16px;line-height:1.7;">
+          <span style="display:block;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#5c6b63;padding-bottom:8px;">${escape(heading)}</span>
+          ${rows.join("\n          ")}
+        </td>
+      </tr>
+    </table>`;
+}
+
+/** One line of the block, as text. */
+function row(line: string) {
+  return `<span style="display:block;">${escape(line)}</span>`;
+}
+
+/** The same lines as a bordered block, for the HTML side. */
+function block(heading: string, lines: string[]) {
+  return rawBlock(heading, lines.map(row));
+}
+
+/**
  * The one email we send by hand: their money arrived, so their place is
  * theirs. It says what they have secured and what has not been sent yet, and
  * then it stops — nothing about what to do next, because there is nothing.
@@ -91,21 +153,16 @@ export function paymentConfirmation(
     CONTACT_EMAIL,
   ];
 
-  const detail = [program.title, when, program.location].filter(Boolean);
+  const detail = [program.title, when, program.location].filter(
+    (line): line is string => Boolean(line),
+  );
 
   const html = `<div style="margin:0;padding:24px;background:#f4f1ea;font-family:Georgia,'Times New Roman',serif;color:#1f2a24;">
   <div style="max-width:34rem;margin:0 auto;background:#faf8f3;border:1px solid #c8a45c;padding:32px;">
     <p style="margin:0;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9b2f2f;">Payment received</p>
     <p style="margin:20px 0 0;font-size:22px;line-height:1.4;">Assalamu alaikum ${escape(name)}, your place is reserved.</p>
     <p style="margin:20px 0 0;font-size:16px;line-height:1.6;">We have received your payment for ${escape(program.title)}. There is nothing further to send.</p>
-    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:28px 0 0;border-top:1px solid #dcd4c4;border-bottom:1px solid #dcd4c4;">
-      <tr>
-        <td style="padding:16px 0;font-size:16px;line-height:1.7;">
-          <span style="display:block;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#5c6b63;padding-bottom:8px;">What you have secured</span>
-          ${detail.map((line) => `<span style="display:block;">${escape(line as string)}</span>`).join("\n          ")}
-        </td>
-      </tr>
-    </table>
+    ${block("What you have secured", detail)}
     <p style="margin:24px 0 0;font-size:16px;line-height:1.6;">${escape(materials)}</p>
     <p style="margin:32px 0 0;font-size:14px;line-height:1.6;color:#5c6b63;">Ottawa Majless<br><a href="mailto:${CONTACT_EMAIL}" style="color:#9b2f2f;">${CONTACT_EMAIL}</a></p>
   </div>
@@ -119,10 +176,15 @@ export function paymentConfirmation(
 }
 
 /**
- * The nudge for someone who registered and whose e-transfer has not arrived.
- * It repeats the whole of what is being asked — the amount, the address, the
+ * The nudge for someone whose fee has not arrived, in whole or in part. It
+ * repeats the whole of what is being asked — the amount, the address, the
  * name in the message — because a reminder that only says "you have not paid"
  * makes the reader go and find the original mail.
+ *
+ * Someone part way through paying is asked for their balance and not for the
+ * fee again: the amount named is what is actually outstanding, and what they
+ * have already sent is named first, so the letter cannot read as though their
+ * instalments went unnoticed.
  *
  * It ends by saying a transfer sent in the last day or two may have crossed
  * with it. Transfers land days after they are sent and the register is only
@@ -132,21 +194,47 @@ export function paymentConfirmation(
 export function paymentReminder(
   registration: Registration,
   program: Program,
+  settlement: Settlement,
 ): Message {
   const name = firstName(registration.full_name);
-  const fee = program.fee_note;
+  const partPaid = settlement.partial;
+
+  // What to ask for: the balance when it is known, and otherwise the fee as
+  // it is written on the program. Never both — two numbers in one letter is
+  // how someone comes to send the wrong one.
+  const asking =
+    partPaid && settlement.outstanding !== null && settlement.outstanding > 0
+      ? `${formatMoney(settlement.outstanding)}, the balance of your fee`
+      : program.fee_note;
+
+  const opening = partPaid
+    ? `Thank you for what you have already sent towards ${program.title}. A balance is still standing, and a place is held once the whole of the fee has arrived.`
+    : `You registered for ${program.title}, and we have not yet seen your payment arrive. A place is held once the fee does, so this is the one thing left to do.`;
+
+  const sofar = partPaid
+    ? balanceLines(settlement, registration.next_payment_due)
+    : [];
+
+  // The line that keeps this from being an accusation. Transfers land days
+  // after they are sent, so some of these letters do reach someone who has
+  // already paid — and for a part payer it is the balance they may have
+  // just sent, not the fee.
+  const crossed = partPaid
+    ? "If you have already sent the rest, it has crossed with this note — nothing more is needed, and the confirmation follows once it lands."
+    : "If you have already sent it, it has crossed with this note — nothing more is needed, and the confirmation follows once it lands.";
 
   const lines = [
     `Assalamu alaikum ${name},`,
     "",
-    `You registered for ${program.title}, and we have not yet seen your payment arrive. A place is held once the fee does, so this is the one thing left to do.`,
+    opening,
+    ...(sofar.length > 0 ? ["", "Where it stands:", ...sofar.map((l) => `  ${l}`)] : []),
     "",
-    "How to send it:",
+    partPaid ? "How to send the rest:" : "How to send it:",
     `  Interac e-transfer to ${ETRANSFER_EMAIL}`,
-    ...(fee ? [`  ${fee}`] : []),
+    ...(asking ? [`  ${asking}`] : []),
     "  Put your full name in the transfer message, so we can match it to your registration.",
     "",
-    "If you have already sent it, it has crossed with this note — nothing more is needed, and the confirmation follows once it lands.",
+    crossed,
     "",
     "If you would rather not carry on, reply to this and we will take your name off the register. No explanation needed.",
     "",
@@ -156,27 +244,92 @@ export function paymentReminder(
 
   const html = `<div style="margin:0;padding:24px;background:#f4f1ea;font-family:Georgia,'Times New Roman',serif;color:#1f2a24;">
   <div style="max-width:34rem;margin:0 auto;background:#faf8f3;border:1px solid #c8a45c;padding:32px;">
-    <p style="margin:0;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9b2f2f;">Payment outstanding</p>
+    <p style="margin:0;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9b2f2f;">${partPaid ? "Balance outstanding" : "Payment outstanding"}</p>
     <p style="margin:20px 0 0;font-size:22px;line-height:1.4;">Assalamu alaikum ${escape(name)}, your place is not held yet.</p>
-    <p style="margin:20px 0 0;font-size:16px;line-height:1.6;">You registered for ${escape(program.title)}, and we have not yet seen your payment arrive. A place is held once the fee does, so this is the one thing left to do.</p>
-    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:28px 0 0;border-top:1px solid #dcd4c4;border-bottom:1px solid #dcd4c4;">
-      <tr>
-        <td style="padding:16px 0;font-size:16px;line-height:1.7;">
-          <span style="display:block;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#5c6b63;padding-bottom:8px;">How to send it</span>
-          <span style="display:block;">Interac e-transfer to <a href="mailto:${ETRANSFER_EMAIL}" style="color:#9b2f2f;">${ETRANSFER_EMAIL}</a></span>
-          ${fee ? `<span style="display:block;">${escape(fee)}</span>` : ""}
-          <span style="display:block;">Put your full name in the transfer message, so we can match it to your registration.</span>
-        </td>
-      </tr>
-    </table>
-    <p style="margin:24px 0 0;font-size:16px;line-height:1.6;">If you have already sent it, it has crossed with this note — nothing more is needed, and the confirmation follows once it lands.</p>
+    <p style="margin:20px 0 0;font-size:16px;line-height:1.6;">${escape(opening)}</p>
+    ${sofar.length > 0 ? block("Where it stands", sofar) : ""}
+    ${rawBlock(partPaid ? "How to send the rest" : "How to send it", [
+      `<span style="display:block;">Interac e-transfer to <a href="mailto:${ETRANSFER_EMAIL}" style="color:#9b2f2f;">${ETRANSFER_EMAIL}</a></span>`,
+      ...(asking ? [row(asking)] : []),
+      row(
+        "Put your full name in the transfer message, so we can match it to your registration.",
+      ),
+    ])}
+    <p style="margin:24px 0 0;font-size:16px;line-height:1.6;">${escape(crossed)}</p>
     <p style="margin:16px 0 0;font-size:16px;line-height:1.6;">If you would rather not carry on, reply to this and we will take your name off the register. No explanation needed.</p>
     <p style="margin:32px 0 0;font-size:14px;line-height:1.6;color:#5c6b63;">Ottawa Majless<br><a href="mailto:${CONTACT_EMAIL}" style="color:#9b2f2f;">${CONTACT_EMAIL}</a></p>
   </div>
 </div>`;
 
   return {
-    subject: `Your place in ${program.title} is not held yet`,
+    subject: partPaid
+      ? `The balance of your fee for ${program.title}`
+      : `Your place in ${program.title} is not held yet`,
+    text: lines.join("\n"),
+    html,
+  };
+}
+
+/**
+ * The receipt for an instalment: this much has arrived, this much remains,
+ * and this is when the next one is expected. It is the letter that makes a
+ * part payment a settled arrangement rather than an unanswered transfer.
+ *
+ * It is deliberately warm about what came and plain about what has not. The
+ * thing it must never do is read as a demand — someone paying in instalments
+ * has already done what was agreed, and the balance is a date in the diary,
+ * not a debt being chased. The reminder is the letter that chases.
+ */
+export function partPaymentReceipt(
+  registration: Registration,
+  program: Program,
+  payments: Payment[],
+  settlement: Settlement,
+): Message {
+  const name = firstName(registration.full_name);
+  const latest = payments[payments.length - 1];
+  const nextDue = registration.next_payment_due;
+
+  const opening = latest
+    ? `We have received ${formatMoney(latest.amount)} towards ${program.title}. Thank you.`
+    : `We have received your payment towards ${program.title}. Thank you.`;
+
+  const closing = nextDue
+    ? `The rest is expected by ${readDate(nextDue)}. Send it the same way — Interac e-transfer to ${ETRANSFER_EMAIL}, with your full name in the message. Your place is held once the fee is settled.`
+    : `Send the rest whenever you are able — Interac e-transfer to ${ETRANSFER_EMAIL}, with your full name in the message. Your place is held once the fee is settled.`;
+
+  const stands = balanceLines(settlement, nextDue);
+
+  const lines = [
+    `Assalamu alaikum ${name},`,
+    "",
+    opening,
+    "",
+    "Where it stands:",
+    ...stands.map((line) => `  ${line}`),
+    "",
+    closing,
+    "",
+    "If the arrangement needs to change, reply to this and we will sort it out.",
+    "",
+    "Ottawa Majless",
+    CONTACT_EMAIL,
+  ];
+
+  const html = `<div style="margin:0;padding:24px;background:#f4f1ea;font-family:Georgia,'Times New Roman',serif;color:#1f2a24;">
+  <div style="max-width:34rem;margin:0 auto;background:#faf8f3;border:1px solid #c8a45c;padding:32px;">
+    <p style="margin:0;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9b2f2f;">Payment received</p>
+    <p style="margin:20px 0 0;font-size:22px;line-height:1.4;">Assalamu alaikum ${escape(name)}, thank you.</p>
+    <p style="margin:20px 0 0;font-size:16px;line-height:1.6;">${escape(opening)}</p>
+    ${block("Where it stands", stands)}
+    <p style="margin:24px 0 0;font-size:16px;line-height:1.6;">${escape(closing)}</p>
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.6;">If the arrangement needs to change, reply to this and we will sort it out.</p>
+    <p style="margin:32px 0 0;font-size:14px;line-height:1.6;color:#5c6b63;">Ottawa Majless<br><a href="mailto:${CONTACT_EMAIL}" style="color:#9b2f2f;">${CONTACT_EMAIL}</a></p>
+  </div>
+</div>`;
+
+  return {
+    subject: `We have received your payment towards ${program.title}`,
     text: lines.join("\n"),
     html,
   };
