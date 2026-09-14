@@ -61,6 +61,7 @@ create table if not exists registrations (
   -- When the last part-payment receipt went out, null until one has. Like the
   -- reminder it may go once per instalment, so only the latest is kept.
   part_payment_email_sent_at timestamptz,
+  date_request_email_sent_at timestamptz,
   -- When the next instalment is expected, null when none is. An arrangement,
   -- not a rule: nothing enforces it and nothing is sent on it.
   next_payment_due date,

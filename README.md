@@ -217,23 +217,45 @@ is not shown on the page.
 
 ### Writing to someone part way through
 
-Beside anyone **part paid** there are two letters instead of one.
+Beside anyone **part paid** there are three letters. Each is its own button and
+each button says what it does — which letter goes out is never inferred from the
+state of the row.
 
-**Send receipt** thanks them for the instalment that arrived — the amount and
-the day it landed — and says what has come and what remains. On the first
-instalment it opens by welcoming them to the program by name, with the teacher's.
+All three open the same way: what arrived, the day it landed, and where the fee
+stands. They differ in how they end.
 
-Then it either asks or tells, on whether a next payment date has been written
-down. With a date it names it back to them: the arrangement written back to the
-person who made it, which is the letter the due date exists for. **Without one it
-asks them to name a date**, and invites one before the program reaches its
-midpoint so the enrolment can be confirmed for the full course — which is the
-letter to send once a first instalment lands and nothing has been agreed yet.
+**Send receipt** reports. It ends on the arrangement as it stands — "the rest is
+expected by 15 Oct 2026" where a date is written down, and simply "send the
+balance when you are able" where none is. Send it when you record a payment.
 
-Send it when you record a payment, or not at all; nothing is automatic.
+**Ask when the rest comes** asks. With no date written down it asks them to name
+one, before the program reaches its midpoint, so the enrolment can be confirmed
+for the full course. With a date already down it asks whether that day still
+suits. This is the letter to send once a first instalment lands and nothing has
+been agreed — the place is otherwise being held against nothing.
 
-**Ask for the balance** is the ordinary reminder, and it knows about their
-payments: it asks for the outstanding amount rather than the fee, and thanks
+**Ask for the balance** is the ordinary overdue reminder, below.
+
+On someone's first instalment the receipt and the question both open by welcoming
+them to the program by name, with the teacher's. Later ones do not: it is a warm
+thing to read once and an odd thing to read again beside a third letter.
+
+Nothing is automatic. Recording a payment writes nothing to anybody.
+
+### Reading a letter before you send it
+
+Beside every send button is a **?**. It opens that person's own copy of the
+letter — the subject and the full text, built from their program and their
+payments, with their amounts and their dates in it. It is the letter, not a
+description of one, so it cannot drift out of step with what actually goes.
+
+Where a letter could not be sent, the **?** is not offered. The receipt and the
+question both thank someone for money, so on a part paid row with nothing
+recorded against it they are refused, and the row says so instead of showing you
+a letter that would bounce off the send.
+
+**Ask for the balance** is the ordinary overdue reminder, and it knows about
+their payments: it asks for the outstanding amount rather than the fee, and thanks
 them for what already arrived first, so it cannot read as though their
 instalments went unnoticed. Send it when a due date has gone by.
 

@@ -111,7 +111,10 @@ export async function setProgramFields(
     Object.entries(fields).filter(([, value]) => value !== undefined),
   );
   if (Object.keys(present).length === 0) return;
-  const { error } = await supabase().from("programs").update(present).eq("id", id);
+  const { error } = await supabase()
+    .from("programs")
+    .update(present)
+    .eq("id", id);
   if (error) throw new Error(error.message);
 }
 
@@ -219,6 +222,15 @@ export async function markPartPaymentEmailSent(id: string) {
   if (error) throw new Error(error.message);
 }
 
+/** The same, for the letter asking which day the balance is coming. */
+export async function markDateRequestEmailSent(id: string) {
+  const { error } = await supabase()
+    .from("registrations")
+    .update({ date_request_email_sent_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
 export async function setAdminNote(id: string, admin_note: string) {
   const { error } = await supabase()
     .from("registrations")
@@ -228,7 +240,10 @@ export async function setAdminNote(id: string, admin_note: string) {
 }
 
 export async function deleteRegistration(id: string) {
-  const { error } = await supabase().from("registrations").delete().eq("id", id);
+  const { error } = await supabase()
+    .from("registrations")
+    .delete()
+    .eq("id", id);
   if (error) throw new Error(error.message);
 }
 
@@ -300,7 +315,5 @@ export function totalsByRegistration(payments: Payment[]): Map<string, number> {
     amounts.push(p.amount);
     byRow.set(p.registration_id, amounts);
   }
-  return new Map(
-    [...byRow].map(([id, amounts]) => [id, sumAmounts(amounts)]),
-  );
+  return new Map([...byRow].map(([id, amounts]) => [id, sumAmounts(amounts)]));
 }

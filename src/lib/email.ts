@@ -274,25 +274,24 @@ export function paymentReminder(
 }
 
 /**
- * The letter for a fee arriving in parts: what came in, what that leaves, and
- * the one thing the register cannot work out for itself — when the rest is
- * coming.
+ * The two letters for a fee arriving in parts. They share everything but their
+ * last paragraph, which is the whole of the difference between them: one says
+ * where the money stands, the other asks when the rest of it is coming.
  *
- * It asks or it tells, on whether a next payment date has been written down.
- * With a date it names it back to them, so nobody has to reconcile two
- * tellings of their own arrangement. Without one it asks them to name a date,
- * which is the letter to send after the first instalment lands: the old wording
- * said "send the rest whenever you are able", which is friendly and leaves the
- * majless with nothing to hold a place against.
+ * Which goes out is a button, not a condition. It was a condition for a while —
+ * the receipt asked for a date when none was written down — and nobody could
+ * find the letter that asked, because the button said "Send receipt" and the
+ * thing that decided was a date field on the other side of the row.
  *
  * The welcome goes on the first instalment only. It is a warm thing to read
- * once and an odd thing to read again beside a third receipt.
+ * once and an odd thing to read again beside a third letter.
  */
-export function partPaymentReceipt(
+function partPaymentLetter(
   registration: Registration,
   program: Program,
   payments: Payment[],
   settlement: Settlement,
+  asking: boolean,
 ): Message {
   const name = firstName(registration.full_name);
   const latest = payments[payments.length - 1];
@@ -310,14 +309,17 @@ export function partPaymentReceipt(
     ? `We received your payment of ${formatMoney(latest.amount)} on ${readDate(latest.received_on)}. Thank you.`
     : `We have received your payment towards ${program.title}. Thank you.`;
 
-  const asking = !nextDue;
-  const closing = nextDue
-    ? `The rest is expected by ${readDate(nextDue)}. Send it the same way — Interac e-transfer to ${ETRANSFER_EMAIL}, with your full name in the message. Your place is held once the fee is settled.`
-    : `Could you let us know when you expect to send the balance? If you have a date in mind before the program reaches its midpoint, tell us and we can confirm your enrolment for the full course.`;
+  // Asking with a date already written down is not a different letter, it is
+  // the same question about a day that may since have stopped suiting them.
+  const closing = asking
+    ? nextDue
+      ? `We have ${readDate(nextDue)} written down for the balance. Does that still suit? If another day works better, tell us — any day before the program reaches its midpoint lets us confirm your enrolment for the full course.`
+      : `Could you let us know when you expect to send the balance? If you have a date in mind before the program reaches its midpoint, tell us and we can confirm your enrolment for the full course.`
+    : nextDue
+      ? `The rest is expected by ${readDate(nextDue)}.`
+      : `Send the balance when you are able.`;
 
-  // Only the asking letter needs this said separately: the telling one has the
-  // address in its own closing line already.
-  const how = `The balance goes the same way — Interac e-transfer to ${ETRANSFER_EMAIL}, with your full name in the message. Your place is held once the fee is settled.`;
+  const how = `It goes the same way — Interac e-transfer to ${ETRANSFER_EMAIL}, with your full name in the message. Your place is held once the fee is settled.`;
 
   const stands = balanceLines(settlement, nextDue);
 
@@ -331,7 +333,8 @@ export function partPaymentReceipt(
     ...stands.map((line) => `  ${line}`),
     "",
     closing,
-    ...(asking ? ["", how] : []),
+    "",
+    how,
     "",
     "If the arrangement needs to change, reply to this and we will sort it out.",
     "",
@@ -339,25 +342,60 @@ export function partPaymentReceipt(
     CONTACT_EMAIL,
   ];
 
+  const rubric = welcoming
+    ? "Welcome"
+    : asking
+      ? "The balance"
+      : "Payment received";
+  const headline = welcoming
+    ? "welcome"
+    : asking
+      ? "one question"
+      : "thank you";
+
   const html = `<div style="margin:0;padding:24px;background:#f4f1ea;font-family:Georgia,'Times New Roman',serif;color:#1f2a24;">
   <div style="max-width:34rem;margin:0 auto;background:#faf8f3;border:1px solid #c8a45c;padding:32px;">
-    <p style="margin:0;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9b2f2f;">${welcoming ? "Welcome" : "Payment received"}</p>
-    <p style="margin:20px 0 0;font-size:22px;line-height:1.4;">Assalamu alaikum ${escape(name)}, ${welcoming ? "welcome" : "thank you"}.</p>
+    <p style="margin:0;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9b2f2f;">${rubric}</p>
+    <p style="margin:20px 0 0;font-size:22px;line-height:1.4;">Assalamu alaikum ${escape(name)}, ${headline}.</p>
     ${welcoming ? `<p style="margin:20px 0 0;font-size:16px;line-height:1.6;">${escape(welcome)}</p>` : ""}
     <p style="margin:20px 0 0;font-size:16px;line-height:1.6;">${escape(opening)}</p>
     ${block("Where it stands", stands)}
     <p style="margin:24px 0 0;font-size:16px;line-height:1.6;">${escape(closing)}</p>
-    ${asking ? `<p style="margin:16px 0 0;font-size:16px;line-height:1.6;">${escape(how)}</p>` : ""}
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.6;">${escape(how)}</p>
     <p style="margin:16px 0 0;font-size:16px;line-height:1.6;">If the arrangement needs to change, reply to this and we will sort it out.</p>
     <p style="margin:32px 0 0;font-size:14px;line-height:1.6;color:#5c6b63;">Ottawa Majless<br><a href="mailto:${CONTACT_EMAIL}" style="color:#9b2f2f;">${CONTACT_EMAIL}</a></p>
   </div>
 </div>`;
 
-  return {
-    subject: welcoming
+  const subject = asking
+    ? `When can we expect the balance for ${program.title}?`
+    : welcoming
       ? `Welcome to ${program.title} — your payment has been received`
-      : `We have received your payment towards ${program.title}`,
-    text: lines.join("\n"),
-    html,
-  };
+      : `We have received your payment towards ${program.title}`;
+
+  return { subject, text: lines.join("\n"), html };
+}
+
+/** What arrived, what it leaves, and the date if one has been agreed. */
+export function partPaymentReceipt(
+  registration: Registration,
+  program: Program,
+  payments: Payment[],
+  settlement: Settlement,
+): Message {
+  return partPaymentLetter(registration, program, payments, settlement, false);
+}
+
+/**
+ * The same letter, ending in the question the register cannot answer: when is
+ * the rest coming? Sent after an instalment lands, so a place can be held
+ * against a day rather than against nothing.
+ */
+export function partPaymentDateRequest(
+  registration: Registration,
+  program: Program,
+  payments: Payment[],
+  settlement: Settlement,
+): Message {
+  return partPaymentLetter(registration, program, payments, settlement, true);
 }

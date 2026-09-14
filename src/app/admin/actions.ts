@@ -17,6 +17,7 @@ import {
   listPayments,
   listPaymentsFor,
   listRegistrations,
+  markDateRequestEmailSent,
   markPartPaymentEmailSent,
   markPaymentEmailSent,
   markPaymentReminderSent,
@@ -29,16 +30,24 @@ import {
 } from "@/lib/data";
 import {
   isEmailConfigured,
+  partPaymentDateRequest,
   partPaymentReceipt,
   paymentConfirmation,
   paymentReminder,
   sendEmail,
 } from "@/lib/email";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/form-state";
-import { formatMoney, parseAmount, settle, sumAmounts } from "@/lib/money";
+import {
+  formatMoney,
+  parseAmount,
+  settle,
+  sumAmounts,
+  type Settlement,
+} from "@/lib/money";
 import {
   isOwing,
   STATUS_ORDER,
+  type Payment,
   type Program,
   type Registration,
   type RegistrationStatus,
@@ -455,14 +464,64 @@ export async function sendPaymentReminder(
 }
 
 /**
- * The receipt for one instalment: this much arrived, this much remains, and
- * this is when the next is expected. It is the letter the "next payment" date
- * exists for — the arrangement written back to the person who made it.
+ * Everything the two part-payment letters need, or the reason neither can go.
  *
- * Pressed rather than fired by recording a payment, for the same reason the
- * confirmation always was: settling the money and writing to someone are two
- * acts, and you should be able to do the first at the inbox and the second
- * when you mean to.
+ * Both say what arrived and name a balance, so both want the same three facts
+ * and refuse in the same two cases: nothing has come in, or nothing is left to
+ * come. Written once because a third copy of it is how two letters drift into
+ * disagreeing about who may be sent one.
+ */
+async function partPayerFor(id: string): Promise<
+  | { ok: false; state: FormState }
+  | {
+      ok: true;
+      registration: Registration;
+      program: Program;
+      payments: Payment[];
+      settlement: Settlement;
+    }
+> {
+  const fail = (message: string) => ({
+    ok: false as const,
+    state: { ...EMPTY_FORM_STATE, status: "error" as const, message },
+  });
+
+  if (!isEmailConfigured) {
+    return fail("Email is not set up. Add RESEND_API_KEY to your environment.");
+  }
+
+  const registration = await getRegistrationById(id);
+  if (!registration) {
+    return fail("That registration is no longer in the database.");
+  }
+
+  const program = await getProgramById(registration.program_id);
+  if (!program) return fail("Their program is no longer in the database.");
+
+  const payments = await listPaymentsFor(id);
+  const settlement = settle(
+    sumAmounts(payments.map((payment) => payment.amount)),
+    program.fee_amount,
+  );
+
+  // Both letters name a balance. Both need money to have arrived and a balance
+  // to still stand; without either it is the confirmation or the reminder that
+  // fits, not these.
+  if (!settlement.partial) {
+    return fail(
+      settlement.settled
+        ? "Their fee is settled. Send the payment confirmation instead — these letters name a balance that is no longer owed."
+        : "Nothing has arrived from them yet. Record a payment first, or send the reminder instead.",
+    );
+  }
+
+  return { ok: true, registration, program, payments, settlement };
+}
+
+/**
+ * The receipt: what arrived, what it leaves, and the agreed date if there is
+ * one. It reports rather than asks — pressing it is saying "this is where you
+ * stand", which is the letter to send when the arrangement is already settled.
  */
 export async function sendPartPaymentReceipt(
   _prev: FormState,
@@ -473,50 +532,9 @@ export async function sendPartPaymentReceipt(
   const id = String(formData.get("id") ?? "");
   if (!id) return EMPTY_FORM_STATE;
 
-  if (!isEmailConfigured) {
-    return {
-      ...EMPTY_FORM_STATE,
-      status: "error",
-      message: "Email is not set up. Add RESEND_API_KEY to your environment.",
-    };
-  }
-
-  const registration = await getRegistrationById(id);
-  if (!registration) {
-    return {
-      ...EMPTY_FORM_STATE,
-      status: "error",
-      message: "That registration is no longer in the database.",
-    };
-  }
-
-  const program = await getProgramById(registration.program_id);
-  if (!program) {
-    return {
-      ...EMPTY_FORM_STATE,
-      status: "error",
-      message: "Their program is no longer in the database.",
-    };
-  }
-
-  const payments = await listPaymentsFor(id);
-  const settlement = settle(
-    sumAmounts(payments.map((payment) => payment.amount)),
-    program.fee_amount,
-  );
-
-  // The letter thanks them for an instalment and names a balance. Both need
-  // money to have arrived and a balance to still stand; without either it is
-  // the confirmation or the reminder that fits, not this.
-  if (!settlement.partial) {
-    return {
-      ...EMPTY_FORM_STATE,
-      status: "error",
-      message: settlement.settled
-        ? "Their fee is settled. Send the payment confirmation instead — this letter names a balance that is no longer owed."
-        : "Nothing has arrived from them yet. Record a payment first, or send the reminder instead.",
-    };
-  }
+  const found = await partPayerFor(id);
+  if (!found.ok) return found.state;
+  const { registration, program, payments, settlement } = found;
 
   try {
     await sendEmail(
@@ -538,6 +556,47 @@ export async function sendPartPaymentReceipt(
     ...EMPTY_FORM_STATE,
     status: "ok",
     message: `Sent to ${registration.email}.`,
+  };
+}
+
+/**
+ * The same letter ending in a question: which day is the balance coming? It
+ * is its own button rather than a condition on the receipt, because a letter
+ * nobody can find is a letter that never goes.
+ */
+export async function sendPartPaymentDateRequest(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return EMPTY_FORM_STATE;
+
+  const found = await partPayerFor(id);
+  if (!found.ok) return found.state;
+  const { registration, program, payments, settlement } = found;
+
+  try {
+    await sendEmail(
+      registration.email,
+      partPaymentDateRequest(registration, program, payments, settlement),
+    );
+  } catch (error) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: `It was not sent: ${error instanceof Error ? error.message : "the mail server refused it"}. Nothing was recorded, so you can try again.`,
+    };
+  }
+
+  await markDateRequestEmailSent(id);
+  revalidatePath("/admin");
+
+  return {
+    ...EMPTY_FORM_STATE,
+    status: "ok",
+    message: `Asked ${registration.email} when the balance is coming.`,
   };
 }
 

@@ -7,6 +7,12 @@ import {
   listRegistrations,
   totalsByRegistration,
 } from "@/lib/data";
+import {
+  partPaymentDateRequest,
+  partPaymentReceipt,
+  paymentConfirmation,
+  paymentReminder,
+} from "@/lib/email";
 import { formatMoney, settle, sumAmounts, tally } from "@/lib/money";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import {
@@ -22,6 +28,7 @@ import {
   recordPayment,
   removePayment,
   removeRegistration,
+  sendPartPaymentDateRequest,
   sendPartPaymentReceipt,
   sendPaymentConfirmation,
   sendPaymentReminder,
@@ -149,6 +156,39 @@ export default async function AdminPage({ searchParams }: Params) {
   // Everyone the reminder is for: still owing, whether nothing has arrived or
   // only part of it. Waitlisted and withdrawn people are not asked for money.
   const owing = registrations.filter((r) => isOwing(r.status));
+
+  const programById = new Map(programs.map((p) => [p.id, p]));
+
+  /**
+   * This person's copy of a letter, for the "?" beside the button that sends
+   * it. Only the subject and the plain text: the styled version says the same
+   * thing, and a wall of table markup is not what anyone opens this to read.
+   */
+  const letterFor = (
+    r: (typeof registrations)[number],
+    which: "confirmation" | "reminder" | "receipt" | "ask",
+  ) => {
+    const program = programById.get(r.program_id);
+    if (!program) return undefined;
+    const stands = settlementFor(r);
+    const paid = paymentsByRow.get(r.id) ?? [];
+    // The two part-payment letters thank someone for money and name what it
+    // leaves, and the action refuses to send either when none has arrived.
+    // Showing one anyway would promise a letter that cannot go — and the row
+    // does happen: a status set by hand, or a mistyped figure taken back off.
+    if ((which === "receipt" || which === "ask") && !stands.partial) {
+      return undefined;
+    }
+    const message =
+      which === "confirmation"
+        ? paymentConfirmation(r, program)
+        : which === "reminder"
+          ? paymentReminder(r, program, stands)
+          : which === "receipt"
+            ? partPaymentReceipt(r, program, paid, stands)
+            : partPaymentDateRequest(r, program, paid, stands);
+    return { subject: message.subject, text: message.text };
+  };
 
   /** What one row puts into the two figures at the top. */
   const tallyFor = (r: (typeof registrations)[number]) =>
@@ -437,6 +477,7 @@ export default async function AdminPage({ searchParams }: Params) {
                           sentAt={r.payment_email_sent_at}
                           label="Send confirmation"
                           againLabel="Send it again"
+                          preview={letterFor(r, "confirmation")}
                         />
                       </div>
                     </>
@@ -444,26 +485,42 @@ export default async function AdminPage({ searchParams }: Params) {
                     <>
                       <p className="field-label">Their part payment</p>
                       <p className="mt-1 max-w-prose text-sm text-slate">
-                        The receipt names what arrived and the day it did, and
-                        welcomes them on the first one. With no next date set it
-                        asks them to name one; with a date it names that back to
-                        them. The reminder asks for the balance — send that one
-                        when a date has gone by.
+                        Three letters, each saying what it does. All three name
+                        what arrived and what is left; they differ in how they
+                        end. Press <span className="text-ink">?</span> beside
+                        one to read it exactly as it would go out.
                       </p>
+                      {settlementFor(r).partial ? null : (
+                        <p className="mt-2 max-w-prose text-sm text-madder">
+                          Nothing has arrived from them yet, so the first two
+                          have no payment to thank them for and will not send.
+                          Record what came in, or ask for the balance below.
+                        </p>
+                      )}
                       <div className="mt-3 grid gap-4">
                         <SendMailButton
                           action={sendPartPaymentReceipt}
                           registrationId={r.id}
                           sentAt={r.part_payment_email_sent_at}
                           label="Send receipt"
-                          againLabel="Send it again"
+                          againLabel="Send the receipt again"
+                          preview={letterFor(r, "receipt")}
+                        />
+                        <SendMailButton
+                          action={sendPartPaymentDateRequest}
+                          registrationId={r.id}
+                          sentAt={r.date_request_email_sent_at}
+                          label="Ask when the rest comes"
+                          againLabel="Ask again when the rest comes"
+                          preview={letterFor(r, "ask")}
                         />
                         <SendMailButton
                           action={sendPaymentReminder}
                           registrationId={r.id}
                           sentAt={r.payment_reminder_sent_at}
                           label="Ask for the balance"
-                          againLabel="Ask again"
+                          againLabel="Ask for the balance again"
+                          preview={letterFor(r, "reminder")}
                         />
                       </div>
                     </>
@@ -481,6 +538,7 @@ export default async function AdminPage({ searchParams }: Params) {
                           sentAt={r.payment_reminder_sent_at}
                           label="Send reminder"
                           againLabel="Remind again"
+                          preview={letterFor(r, "reminder")}
                         />
                       </div>
                     </>

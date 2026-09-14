@@ -125,6 +125,12 @@ export type Registration = {
    */
   part_payment_email_sent_at: string | null;
   /**
+   * When we last asked them which day the balance is coming, null until we
+   * have. Its own column rather than the receipt's, so the two buttons on a
+   * part paid row cannot claim each other's date.
+   */
+  date_request_email_sent_at: string | null;
+  /**
    * The day the next instalment is expected, as YYYY-MM-DD, null when none
    * is. It is an arrangement written down, not a rule: nothing enforces it
    * and nothing is sent on it. Reminders are still pressed by hand.
