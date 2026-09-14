@@ -219,11 +219,18 @@ is not shown on the page.
 
 Beside anyone **part paid** there are two letters instead of one.
 
-**Send receipt** thanks them for the instalment that arrived, names what has
-come and what remains, and gives the date the next one is expected. It is the
-letter the due date exists for — the arrangement written back to the person
-who made it. Send it when you record a payment, or not at all; nothing is
-automatic.
+**Send receipt** thanks them for the instalment that arrived — the amount and
+the day it landed — and says what has come and what remains. On the first
+instalment it opens by welcoming them to the program by name, with the teacher's.
+
+Then it either asks or tells, on whether a next payment date has been written
+down. With a date it names it back to them: the arrangement written back to the
+person who made it, which is the letter the due date exists for. **Without one it
+asks them to name a date**, and invites one before the program reaches its
+midpoint so the enrolment can be confirmed for the full course — which is the
+letter to send once a first instalment lands and nothing has been agreed yet.
+
+Send it when you record a payment, or not at all; nothing is automatic.
 
 **Ask for the balance** is the ordinary reminder, and it knows about their
 payments: it asks for the outstanding amount rather than the fee, and thanks

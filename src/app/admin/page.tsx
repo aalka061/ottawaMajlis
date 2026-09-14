@@ -444,9 +444,11 @@ export default async function AdminPage({ searchParams }: Params) {
                     <>
                       <p className="field-label">Their part payment</p>
                       <p className="mt-1 max-w-prose text-sm text-slate">
-                        The receipt thanks them for what arrived and names the
-                        balance and the next date. The reminder asks for the
-                        balance — send that one when a date has gone by.
+                        The receipt names what arrived and the day it did, and
+                        welcomes them on the first one. With no next date set it
+                        asks them to name one; with a date it names that back to
+                        them. The reminder asks for the balance — send that one
+                        when a date has gone by.
                       </p>
                       <div className="mt-3 grid gap-4">
                         <SendMailButton

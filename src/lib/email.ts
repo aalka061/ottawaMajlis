@@ -10,7 +10,8 @@ import type { Payment, Program, Registration } from "./types";
  * pointed back at the inbox we actually read — the same one the e-transfers
  * arrive in. Give the majless its own domain and only EMAIL_FROM changes.
  */
-const FROM = process.env.EMAIL_FROM ?? "Ottawa Majless <majless@techualize.com>";
+const FROM =
+  process.env.EMAIL_FROM ?? "Ottawa Majless <majless@techualize.com>";
 
 /** True once the API key is set. Without it nothing is sent and we say so. */
 export const isEmailConfigured = Boolean(process.env.RESEND_API_KEY);
@@ -227,7 +228,9 @@ export function paymentReminder(
     `Assalamu alaikum ${name},`,
     "",
     opening,
-    ...(sofar.length > 0 ? ["", "Where it stands:", ...sofar.map((l) => `  ${l}`)] : []),
+    ...(sofar.length > 0
+      ? ["", "Where it stands:", ...sofar.map((l) => `  ${l}`)]
+      : []),
     "",
     partPaid ? "How to send the rest:" : "How to send it:",
     `  Interac e-transfer to ${ETRANSFER_EMAIL}`,
@@ -271,14 +274,19 @@ export function paymentReminder(
 }
 
 /**
- * The receipt for an instalment: this much has arrived, this much remains,
- * and this is when the next one is expected. It is the letter that makes a
- * part payment a settled arrangement rather than an unanswered transfer.
+ * The letter for a fee arriving in parts: what came in, what that leaves, and
+ * the one thing the register cannot work out for itself — when the rest is
+ * coming.
  *
- * It is deliberately warm about what came and plain about what has not. The
- * thing it must never do is read as a demand — someone paying in instalments
- * has already done what was agreed, and the balance is a date in the diary,
- * not a debt being chased. The reminder is the letter that chases.
+ * It asks or it tells, on whether a next payment date has been written down.
+ * With a date it names it back to them, so nobody has to reconcile two
+ * tellings of their own arrangement. Without one it asks them to name a date,
+ * which is the letter to send after the first instalment lands: the old wording
+ * said "send the rest whenever you are able", which is friendly and leaves the
+ * majless with nothing to hold a place against.
+ *
+ * The welcome goes on the first instalment only. It is a warm thing to read
+ * once and an odd thing to read again beside a third receipt.
  */
 export function partPaymentReceipt(
   registration: Registration,
@@ -289,26 +297,41 @@ export function partPaymentReceipt(
   const name = firstName(registration.full_name);
   const latest = payments[payments.length - 1];
   const nextDue = registration.next_payment_due;
+  // Oldest first out of the database, so one payment means this is the first.
+  const welcoming = payments.length <= 1;
 
+  const welcome = program.teacher_name
+    ? `Welcome to ${program.title} with ${program.teacher_name} — we are glad to have you with us.`
+    : `Welcome to ${program.title} — we are glad to have you with us.`;
+
+  // The day it landed is named as well as the amount. It is the thing someone
+  // checks the letter against, and the register went to some trouble to know it.
   const opening = latest
-    ? `We have received ${formatMoney(latest.amount)} towards ${program.title}. Thank you.`
+    ? `We received your payment of ${formatMoney(latest.amount)} on ${readDate(latest.received_on)}. Thank you.`
     : `We have received your payment towards ${program.title}. Thank you.`;
 
+  const asking = !nextDue;
   const closing = nextDue
     ? `The rest is expected by ${readDate(nextDue)}. Send it the same way — Interac e-transfer to ${ETRANSFER_EMAIL}, with your full name in the message. Your place is held once the fee is settled.`
-    : `Send the rest whenever you are able — Interac e-transfer to ${ETRANSFER_EMAIL}, with your full name in the message. Your place is held once the fee is settled.`;
+    : `Could you let us know when you expect to send the balance? If you have a date in mind before the program reaches its midpoint, tell us and we can confirm your enrolment for the full course.`;
+
+  // Only the asking letter needs this said separately: the telling one has the
+  // address in its own closing line already.
+  const how = `The balance goes the same way — Interac e-transfer to ${ETRANSFER_EMAIL}, with your full name in the message. Your place is held once the fee is settled.`;
 
   const stands = balanceLines(settlement, nextDue);
 
   const lines = [
     `Assalamu alaikum ${name},`,
     "",
+    ...(welcoming ? [welcome, ""] : []),
     opening,
     "",
     "Where it stands:",
     ...stands.map((line) => `  ${line}`),
     "",
     closing,
+    ...(asking ? ["", how] : []),
     "",
     "If the arrangement needs to change, reply to this and we will sort it out.",
     "",
@@ -318,18 +341,22 @@ export function partPaymentReceipt(
 
   const html = `<div style="margin:0;padding:24px;background:#f4f1ea;font-family:Georgia,'Times New Roman',serif;color:#1f2a24;">
   <div style="max-width:34rem;margin:0 auto;background:#faf8f3;border:1px solid #c8a45c;padding:32px;">
-    <p style="margin:0;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9b2f2f;">Payment received</p>
-    <p style="margin:20px 0 0;font-size:22px;line-height:1.4;">Assalamu alaikum ${escape(name)}, thank you.</p>
+    <p style="margin:0;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9b2f2f;">${welcoming ? "Welcome" : "Payment received"}</p>
+    <p style="margin:20px 0 0;font-size:22px;line-height:1.4;">Assalamu alaikum ${escape(name)}, ${welcoming ? "welcome" : "thank you"}.</p>
+    ${welcoming ? `<p style="margin:20px 0 0;font-size:16px;line-height:1.6;">${escape(welcome)}</p>` : ""}
     <p style="margin:20px 0 0;font-size:16px;line-height:1.6;">${escape(opening)}</p>
     ${block("Where it stands", stands)}
     <p style="margin:24px 0 0;font-size:16px;line-height:1.6;">${escape(closing)}</p>
+    ${asking ? `<p style="margin:16px 0 0;font-size:16px;line-height:1.6;">${escape(how)}</p>` : ""}
     <p style="margin:16px 0 0;font-size:16px;line-height:1.6;">If the arrangement needs to change, reply to this and we will sort it out.</p>
     <p style="margin:32px 0 0;font-size:14px;line-height:1.6;color:#5c6b63;">Ottawa Majless<br><a href="mailto:${CONTACT_EMAIL}" style="color:#9b2f2f;">${CONTACT_EMAIL}</a></p>
   </div>
 </div>`;
 
   return {
-    subject: `We have received your payment towards ${program.title}`,
+    subject: welcoming
+      ? `Welcome to ${program.title} — your payment has been received`
+      : `We have received your payment towards ${program.title}`,
     text: lines.join("\n"),
     html,
   };
