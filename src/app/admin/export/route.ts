@@ -5,7 +5,7 @@ import {
   listRegistrations,
   totalsByRegistration,
 } from "@/lib/data";
-import { settle } from "@/lib/money";
+import { settle, tally } from "@/lib/money";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { statusLabel } from "@/lib/types";
 
@@ -66,6 +66,7 @@ export async function GET() {
       paidByRow.get(r.id) ?? 0,
       fees.get(r.program_id) ?? null,
     );
+    const { received, outstanding } = tally(stands, r.status);
     return [
       r.full_name,
       r.email,
@@ -77,8 +78,8 @@ export async function GET() {
       r.admin_note,
       r.created_at,
       money(stands.fee),
-      money(stands.paid),
-      money(stands.outstanding),
+      money(received),
+      money(outstanding),
       String(countByRow.get(r.id) ?? 0),
       r.next_payment_due,
       r.payment_reminder_sent_at,

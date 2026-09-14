@@ -7,7 +7,7 @@ import {
   listRegistrations,
   totalsByRegistration,
 } from "@/lib/data";
-import { formatMoney, settle, sumAmounts } from "@/lib/money";
+import { formatMoney, settle, sumAmounts, tally } from "@/lib/money";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import {
   isOwing,
@@ -30,6 +30,7 @@ import {
 } from "./actions";
 import { MoneyPanel } from "./MoneyPanel";
 import { SendMailButton } from "./SendMailButton";
+import { StatusForm } from "./StatusForm";
 import { SendRemindersButton } from "./SendRemindersButton";
 
 export const dynamic = "force-dynamic";
@@ -149,16 +150,18 @@ export default async function AdminPage({ searchParams }: Params) {
   // only part of it. Waitlisted and withdrawn people are not asked for money.
   const owing = registrations.filter((r) => isOwing(r.status));
 
+  /** What one row puts into the two figures at the top. */
+  const tallyFor = (r: (typeof registrations)[number]) =>
+    tally(settlementFor(r), r.status);
+
   // The money across the register, counting only the people whose fee is
   // actually being collected — a withdrawn person's part payment is a refund
   // waiting to go out, not income, and belongs in neither figure.
   const live = registrations.filter(
     (r) => isOwing(r.status) || r.status === "confirmed",
   );
-  const collected = sumAmounts(live.map((r) => paidByRow.get(r.id) ?? 0));
-  const outstanding = sumAmounts(
-    live.map((r) => settlementFor(r).outstanding ?? 0),
-  );
+  const collected = sumAmounts(live.map((r) => tallyFor(r).received));
+  const outstanding = sumAmounts(live.map((r) => tallyFor(r).outstanding ?? 0));
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
@@ -171,7 +174,10 @@ export default async function AdminPage({ searchParams }: Params) {
         </div>
         <div className="flex flex-wrap items-center gap-4">
           {owing.length > 0 && !remindAll ? (
-            <Link href="/admin?remind_all=1#remind-all" className="btn btn-quiet">
+            <Link
+              href="/admin?remind_all=1#remind-all"
+              className="btn btn-quiet"
+            >
               Remind who owes ({owing.length})
             </Link>
           ) : null}
@@ -226,14 +232,18 @@ export default async function AdminPage({ searchParams }: Params) {
         </div>
         <div className="bg-paper px-4 py-5">
           <dt className="field-label">Still owed</dt>
-          <dd className="mt-2 font-mono text-3xl">{formatMoney(outstanding)}</dd>
+          <dd className="mt-2 font-mono text-3xl">
+            {formatMoney(outstanding)}
+          </dd>
         </div>
       </dl>
       <p className="mt-3 max-w-prose text-sm text-slate">
         Across everyone registered, part paid, or paid — the waitlist and the
-        withdrawn are left out of both figures. What is still owed is worked
-        out from the fee amount on each program, so a program with no amount
-        set adds nothing to it.
+        withdrawn are left out of both figures. Marking someone paid records
+        their balance, so both figures are read off the transfers themselves;
+        someone paid before the register did that counts their fee instead, and
+        owes nothing either way. It is all worked out from the fee amount on
+        each program, so a program with no amount set adds nothing to either.
       </p>
 
       {remindAll ? (
@@ -265,13 +275,12 @@ export default async function AdminPage({ searchParams }: Params) {
               <p className="mt-3 max-w-prose text-sm text-slate">
                 Each letter is built from that person&rsquo;s own program and
                 their own payments: someone who has sent nothing is asked for
-                the fee, and someone part way through is asked for their
-                balance and thanked for what already arrived. Every letter
-                carries the e-transfer address and the line about putting a
-                full name in the message, and says outright that a transfer
-                sent in the last day or two has crossed with it. Record the
-                money that has landed first and whoever is settled drops out
-                of this list.
+                the fee, and someone part way through is asked for their balance
+                and thanked for what already arrived. Every letter carries the
+                e-transfer address and the line about putting a full name in the
+                message, and says outright that a transfer sent in the last day
+                or two has crossed with it. Record the money that has landed
+                first and whoever is settled drops out of this list.
               </p>
               <ul className="mt-6 divide-y divide-line border-y border-line">
                 {owing.map((r) => (
@@ -357,7 +366,7 @@ export default async function AdminPage({ searchParams }: Params) {
                   registered {formatDate(r.created_at)}
                   {r.heard_from ? ` · heard via ${r.heard_from}` : ""}
                 </p>
-                {r.next_payment_due && !settlementFor(r).settled ? (
+                {r.next_payment_due && r.status === "partial" ? (
                   <p className="mt-2 font-mono text-xs text-madder">
                     Next payment due {formatDay(r.next_payment_due)}
                   </p>
@@ -392,62 +401,16 @@ export default async function AdminPage({ searchParams }: Params) {
                   </div>
                 </div>
               ) : (
-                <form action={updateRegistration} className="grid gap-3">
-                  <input type="hidden" name="id" value={r.id} />
-                  <div>
-                    <label className="field-label" htmlFor={`status-${r.id}`}>
-                      Status
-                    </label>
-                    <select
-                      id={`status-${r.id}`}
-                      name="status"
-                      defaultValue={
-                        STATUS_ORDER.includes(r.status)
-                          ? r.status
-                          : "interested"
-                      }
-                      className="field-input mt-2"
-                    >
-                      {STATUS_ORDER.map((status) => (
-                        <option key={status} value={status}>
-                          {STATUS_LABEL[status]}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1.5 max-w-prose text-sm text-slate">
-                      The first three set themselves from the money below.
-                      Change one by hand for a fee settled some other way —
-                      recording a payment will set it again from what has
-                      arrived.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="field-label" htmlFor={`note-${r.id}`}>
-                      Your note
-                    </label>
-                    <input
-                      id={`note-${r.id}`}
-                      name="admin_note"
-                      defaultValue={r.admin_note ?? ""}
-                      className="field-input mt-2"
-                      placeholder="Paying in two instalments, agreed by phone"
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-5">
-                    <button type="submit" className="btn btn-quiet">
-                      Save
-                    </button>
-                    <Link
-                      href={`/admin?confirm_delete=${r.id}#r-${r.id}`}
-                      className="font-mono text-[0.6875rem] tracking-[0.14em] text-slate uppercase hover:text-madder"
-                    >
-                      Delete
-                    </Link>
-                  </div>
-                </form>
+                <StatusForm
+                  registrationId={r.id}
+                  status={r.status}
+                  adminNote={r.admin_note}
+                  outstanding={settlementFor(r).outstanding}
+                  action={updateRegistration}
+                />
               )}
 
-              {confirmDelete === r.id ? null : (
+              {confirmDelete === r.id || r.status !== "partial" ? null : (
                 <MoneyPanel
                   registrationId={r.id}
                   payments={paymentsByRow.get(r.id) ?? []}

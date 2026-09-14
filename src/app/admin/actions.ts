@@ -61,6 +61,9 @@ export async function signOut() {
   redirect("/admin/login");
 }
 
+/** A date input posts YYYY-MM-DD, or "" when it is empty. */
+const A_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 export async function updateRegistration(formData: FormData) {
   if (!(await isSignedIn())) redirect("/admin/login");
 
@@ -70,28 +73,98 @@ export async function updateRegistration(formData: FormData) {
   if (!id) return;
 
   if (STATUS_ORDER.includes(status as RegistrationStatus)) {
-    await setRegistrationStatus(id, status as RegistrationStatus);
+    const next = status as RegistrationStatus;
+    // Read before the write, because whether this is someone arriving at paid
+    // or someone already there having their note edited decides whether a
+    // transfer gets written down.
+    const before = await getRegistrationById(id);
+    if (before && next === "confirmed" && before.status !== "confirmed") {
+      await settleByHand(before, formData.get("received_on"));
+    }
+    await setRegistrationStatus(id, next);
   }
   await setAdminNote(id, note);
   revalidatePath("/admin");
 }
 
 /**
- * Puts the status back in step with the money on the row: the whole fee has
- * arrived and the place is held, some of it has and a balance is owed, or
- * none of it has and they are where they started.
+ * Writes the transfer behind a fee marked paid by hand.
  *
- * Status follows the money because the money is the fact — keeping the two in
- * step by hand is how a register comes to say someone owes a fee they settled
- * in November. Waitlist and withdrawn are left exactly as they are: those say
- * something about the person, not about their balance, and a refund waiting
- * to go out should not quietly readmit anyone.
+ * Marking someone paid is one press, and the register should not need a second
+ * one to learn what came in. The balance is the amount and today is the day,
+ * which is the same thing the form would have been filled in with — so the
+ * bookkeeping happens here rather than being asked for twice.
+ *
+ * It is the balance rather than the whole fee, so a row part way through
+ * instalments is topped up instead of doubled. Nothing is written when there is
+ * nothing left to settle, which is what makes marking someone paid twice
+ * harmless, and nothing is written when the program has no fee amount — there
+ * is no figure to use, and inventing one is worse than the gap.
+ *
+ * The note says where the figure came from, so a month later it is not mistaken
+ * for one read off a bank message. The day is the one the form asked for, which
+ * is today unless whoever pressed Save knew better — a transfer read out of the
+ * inbox on Friday may well have landed on Tuesday, and the row that says which
+ * is the one you go looking for when a transfer is disputed.
+ *
+ * A date that did not arrive, or arrived as something other than a date, falls
+ * back to today rather than refusing the press: the status is the thing being
+ * saved, and losing it over a malformed field nobody can see would be worse
+ * than a date that is a few days out.
+ */
+async function settleByHand(
+  registration: Registration,
+  receivedOn: FormDataEntryValue | null,
+) {
+  const [payments, program] = await Promise.all([
+    listPaymentsFor(registration.id),
+    getProgramById(registration.program_id),
+  ]);
+  const { outstanding } = settle(
+    sumAmounts(payments.map((payment) => payment.amount)),
+    program?.fee_amount ?? null,
+  );
+  if (outstanding === null || outstanding <= 0) return;
+
+  const day = String(receivedOn ?? "").trim();
+  await addPayment({
+    registration_id: registration.id,
+    amount: outstanding,
+    received_on: A_DATE.test(day) ? day : new Date().toISOString().slice(0, 10),
+    note: "Marked paid in the register",
+  });
+  // A settled fee expects nothing further, so the arrangement comes off with it.
+  await setNextPaymentDue(registration.id, null);
+}
+
+/**
+ * Puts the status in step with the money on the row: the whole fee has arrived
+ * and the place is held, or some of it has and a balance is owed.
+ *
+ * It only ever moves someone forward. The status is set by hand — that is how a
+ * fee sent in one transfer is written down — and money that has arrived is the
+ * one fact allowed to overrule it, because keeping the two in step by hand is
+ * how a register comes to say someone owes a fee they settled in November.
+ *
+ * Nothing arrived leaves the status exactly where the hand put it, and that is
+ * the case this guard is for. A part paid row is the only one showing an
+ * instalment record, so stepping it back to unpaid takes the record off the
+ * page: it would have closed on the arrangement agreed before any money was
+ * sent, and closed again on the mistyped figure you had just removed in order
+ * to type it correctly.
+ *
+ * Waitlist and withdrawn are left alone outright: those say something about the
+ * person, not about their balance, and a refund waiting to go out should not
+ * quietly readmit anyone.
  *
  * With no fee amount on the program nobody can be settled, only part paid.
  * That is honest — without a number there is nothing to have met.
  */
 async function syncStatusToPayments(registration: Registration) {
-  if (registration.status === "waitlist" || registration.status === "withdrawn") {
+  if (
+    registration.status === "waitlist" ||
+    registration.status === "withdrawn"
+  ) {
     return;
   }
 
@@ -104,18 +177,18 @@ async function syncStatusToPayments(registration: Registration) {
     program?.fee_amount ?? null,
   );
 
-  const next: RegistrationStatus = settled
+  const next: RegistrationStatus | null = settled
     ? "confirmed"
     : partial
       ? "partial"
-      : "interested";
-  if (next !== registration.status) {
+      : null;
+  if (next !== null && next !== registration.status) {
     await setRegistrationStatus(registration.id, next);
+    // A settled fee expects nothing further. Cleared here as well as when a fee
+    // is marked paid by hand, so a stale date cannot outlive either route.
+    if (next === "confirmed") await setNextPaymentDue(registration.id, null);
   }
 }
-
-/** A date input posts YYYY-MM-DD, or "" when it is empty. */
-const A_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * What arrived and when the next is expected — the two things you write down
@@ -278,7 +351,10 @@ export async function sendPaymentConfirmation(
   }
 
   try {
-    await sendEmail(registration.email, paymentConfirmation(registration, program));
+    await sendEmail(
+      registration.email,
+      paymentConfirmation(registration, program),
+    );
   } catch (error) {
     return {
       ...EMPTY_FORM_STATE,
@@ -436,10 +512,9 @@ export async function sendPartPaymentReceipt(
     return {
       ...EMPTY_FORM_STATE,
       status: "error",
-      message:
-        settlement.settled
-          ? "Their fee is settled. Send the payment confirmation instead — this letter names a balance that is no longer owed."
-          : "Nothing has arrived from them yet. Record a payment first, or send the reminder instead.",
+      message: settlement.settled
+        ? "Their fee is settled. Send the payment confirmation instead — this letter names a balance that is no longer owed."
+        : "Nothing has arrived from them yet. Record a payment first, or send the reminder instead.",
     };
   }
 
@@ -473,8 +548,7 @@ export async function sendPartPaymentReceipt(
  */
 const SEND_GAP_MS = 600;
 
-const wait = (ms: number) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * The whole round: a reminder to everyone who still owes, each one written
@@ -624,11 +698,9 @@ export async function updateProgram(
   if (title === "") fieldErrors.title = "A program needs a title.";
 
   const capacityText = text(formData, "capacity");
-  const capacity = capacityText === undefined ? undefined : Number(capacityText);
-  if (
-    capacity !== undefined &&
-    (!Number.isInteger(capacity) || capacity < 1)
-  ) {
+  const capacity =
+    capacityText === undefined ? undefined : Number(capacityText);
+  if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 1)) {
     fieldErrors.capacity = "A whole number, 1 or more.";
   }
 

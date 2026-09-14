@@ -37,8 +37,13 @@ function Error({ message }: { message?: string }) {
 }
 
 /**
- * Where one person's money is written down: every transfer that has arrived,
- * what that leaves owing, and when the next one is expected.
+ * The instalment record for one person: every transfer that has arrived, what
+ * that leaves owing, and when the next one is expected.
+ *
+ * It belongs to a fee being paid in parts, and the register only shows it on a
+ * row marked part paid. A fee sent in one transfer is written down by marking
+ * the person paid, and asking for an amount and a date and a next due date on
+ * that row was four empty fields for an arrangement nobody had made.
  *
  * The list is the record and the total is read off it, rather than the other
  * way round. A fee settled over two months is two transfers on two days, and
@@ -78,83 +83,6 @@ export function MoneyPanel({
   // the amount comes back empty for the next instalment and the due date
   // comes back as whatever was just saved.
 
-  const recordForm = (
-      <form action={formAction} className="mt-4">
-          <input type="hidden" name="id" value={registrationId} />
-          <div className="grid gap-3 sm:grid-cols-[7rem_10rem_1fr_auto] sm:items-end">
-            <div>
-              <label className="field-label" htmlFor={`amount-${registrationId}`}>
-                Amount
-              </label>
-              <input
-                id={`amount-${registrationId}`}
-                name="amount"
-                inputMode="decimal"
-                placeholder={
-                  settlement.outstanding && settlement.outstanding > 0
-                    ? String(settlement.outstanding.toFixed(2))
-                    : "75.00"
-                }
-                className="field-input mt-2"
-              />
-            </div>
-            <div>
-              <label
-                className="field-label"
-                htmlFor={`received-${registrationId}`}
-              >
-                Received on
-              </label>
-              <input
-                id={`received-${registrationId}`}
-                name="received_on"
-                type="date"
-                defaultValue={today()}
-                className="field-input mt-2"
-              />
-            </div>
-            <div>
-              <label className="field-label" htmlFor={`due-${registrationId}`}>
-                Next payment due
-              </label>
-              <input
-                id={`due-${registrationId}`}
-                name="next_payment_due"
-                type="date"
-                defaultValue={nextDue ?? ""}
-                className="field-input mt-2"
-              />
-            </div>
-            <RecordButton />
-          </div>
-          <div>
-            <label className="field-label sr-only" htmlFor={`pn-${registrationId}`}>
-              What this payment was
-            </label>
-            <input
-              id={`pn-${registrationId}`}
-              name="payment_note"
-              className="field-input mt-3"
-              placeholder="First instalment, e-transfer from a family account…"
-            />
-          </div>
-          <Error message={err.amount} />
-          <Error message={err.received_on} />
-          <Error message={err.next_payment_due} />
-          <p className="mt-2 max-w-prose text-sm text-slate">
-            Leave the amount empty to move the next payment date on its own —
-            an arrangement can be made before any of it has been sent.
-            {nextDue ? (
-              <>
-                {" "}
-                Next expected{" "}
-                <span className="text-ink">{readDate(nextDue)}</span>.
-              </>
-            ) : null}
-          </p>
-        </form>
-  );
-
   return (
     <div className="border-t border-line pt-5 md:col-span-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
@@ -188,8 +116,8 @@ export function MoneyPanel({
               {confirmingId === p.id ? (
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                   <span className="text-sm">
-                    Take {formatMoney(p.amount)} of{" "}
-                    {readDate(p.received_on)} back off the record?
+                    Take {formatMoney(p.amount)} of {readDate(p.received_on)}{" "}
+                    back off the record?
                   </span>
                   <form action={removeAction} className="contents">
                     <input type="hidden" name="id" value={registrationId} />
@@ -226,29 +154,93 @@ export function MoneyPanel({
           ))}
         </ul>
       ) : (
-        <p className="mt-3 border-y border-line py-2.5 text-sm text-slate">
-          No payment recorded yet.
+        <p className="mt-3 max-w-prose border-y border-line py-2.5 text-sm text-slate">
+          Nothing recorded yet. Write each instalment down below as it arrives —
+          the one that finishes the fee marks them paid on its own.
         </p>
       )}
 
-      {settlement.settled ? (
-        // Settled is most of a register by the middle of a term, and a form
-        // asking for the next instalment is noise on every one of those rows.
-        // It folds away rather than going: a fee settled in cash still gets
-        // recorded here, and an overpayment has to be able to land somewhere.
-        <details className="mt-4">
-          <summary className="inline-block cursor-pointer list-none font-mono text-[0.6875rem] tracking-[0.14em] text-slate uppercase hover:text-madder [&::-webkit-details-marker]:hidden">
-            Record another payment
-          </summary>
-          <div className="mt-3">{recordForm}</div>
-        </details>
-      ) : (
-        recordForm
-      )}
+      <form action={formAction} className="mt-4">
+        <input type="hidden" name="id" value={registrationId} />
+        <div className="grid gap-3 sm:grid-cols-[7rem_10rem_1fr_auto] sm:items-end">
+          <div>
+            <label className="field-label" htmlFor={`amount-${registrationId}`}>
+              Amount
+            </label>
+            <input
+              id={`amount-${registrationId}`}
+              name="amount"
+              inputMode="decimal"
+              placeholder={
+                settlement.outstanding && settlement.outstanding > 0
+                  ? String(settlement.outstanding.toFixed(2))
+                  : "75.00"
+              }
+              className="field-input mt-2"
+            />
+          </div>
+          <div>
+            <label
+              className="field-label"
+              htmlFor={`received-${registrationId}`}
+            >
+              Received on
+            </label>
+            <input
+              id={`received-${registrationId}`}
+              name="received_on"
+              type="date"
+              defaultValue={today()}
+              className="field-input mt-2"
+            />
+          </div>
+          <div>
+            <label className="field-label" htmlFor={`due-${registrationId}`}>
+              Next payment due
+            </label>
+            <input
+              id={`due-${registrationId}`}
+              name="next_payment_due"
+              type="date"
+              defaultValue={nextDue ?? ""}
+              className="field-input mt-2"
+            />
+          </div>
+          <RecordButton />
+        </div>
+        <div>
+          <label
+            className="field-label sr-only"
+            htmlFor={`pn-${registrationId}`}
+          >
+            What this payment was
+          </label>
+          <input
+            id={`pn-${registrationId}`}
+            name="payment_note"
+            className="field-input mt-3"
+            placeholder="First instalment, e-transfer from a family account…"
+          />
+        </div>
+        <Error message={err.amount} />
+        <Error message={err.received_on} />
+        <Error message={err.next_payment_due} />
+        <p className="mt-2 max-w-prose text-sm text-slate">
+          Leave the amount empty to move the next payment date on its own — an
+          arrangement can be made before any of it has been sent.
+          {nextDue ? (
+            <>
+              {" "}
+              Next expected{" "}
+              <span className="text-ink">{readDate(nextDue)}</span>.
+            </>
+          ) : null}
+        </p>
+      </form>
 
-      {/* Outside the form on purpose: recording the payment that settles
-          someone folds the form away, and the word that it worked should
-          not go with it. */}
+      {/* Outside the form on purpose: the payment that finishes a fee marks
+          the person paid, and this whole panel goes with the status — so the
+          word that it worked should not be nested inside the form. */}
       {state.message ? (
         <p
           className={`mt-2 max-w-prose text-sm ${

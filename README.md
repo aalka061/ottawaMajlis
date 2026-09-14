@@ -24,8 +24,19 @@ place held** (all of it did). Two others are there when you need them:
 **waitlist** and **withdrawn**. The database still stores the first one under
 its old name, `interested`.
 
-You do not set the first three by hand. They follow the money: record a
-payment against someone and their status moves to match what has arrived.
+You set these from the dropdown as the money arrives. Most fees come in one
+transfer, and marking someone **paid — place held** is the whole of writing that
+down: the register records their balance as a transfer, so one press leaves both
+the status and the money behind it on the row.
+
+Choosing it asks one thing — the day the money landed, today unless you say
+otherwise. The field appears when you pick **paid** and only then, so a row you
+are waitlisting or writing a note on is the plain status and note it always was.
+
+**Part paid — balance due** is the one that asks for more. It opens the
+instalment record under their name, and once you are keeping that record the
+status follows it — the transfer that finishes the fee marks them paid on its
+own.
 
 There used to be a **contacted** state in the middle, from when you messaged
 people to ask for the fee. It is gone: the page tells people where to send the
@@ -125,43 +136,84 @@ sees after they submit. Change it there and it changes everywhere. Turn on
 autodeposit for that inbox so nobody has to guess a security question.
 
 People are asked to put their full name in the transfer message, which is how
-you match a transfer to a row. When it lands, record it against them under
-**The money** — the status follows on its own.
+you match a transfer to a row. When the whole fee lands, mark them **paid —
+place held**, check the day, and you are done — the amount writes itself down.
+When only part of it does, set them **part paid — balance due** and record the
+instalments under **The money** as they arrive.
 
 If you later want cards, the place to add it is a checkout beside the
 e-transfer panel in `src/components/PaymentPanel.tsx`.
 
 ## Paying in instalments
 
-Not everyone sends $150 at once. Under each name in the register there is
-**The money**: every transfer that has arrived, what that leaves owing, and
-the day the next one is expected.
+Not everyone sends $150 at once. Set someone **part paid — balance due** and
+**The money** appears under their name: every transfer that has arrived, what
+that leaves owing, and the day the next one is expected.
+
+It is only on those rows. A row that has paid needs no itemising, and a row
+that has sent nothing has no instalments to itemise — four empty money fields
+on either one is a form asking to be filled in for an arrangement nobody made,
+which is how the register came to look like it wanted something from you on
+every line.
 
 Recording a transfer takes an **amount**, the **day it was received** (today,
 unless you say otherwise — the day money lands is rarely the day you read the
 inbox), an optional note for what it was, and the **next payment due** date.
-Press Record and the status moves itself: something in and a balance standing
-makes them **part paid — balance due**, and the transfer that meets the fee
-makes them **paid — place held**. The whole thing is worked out from
-`fee_amount` on their program, so set that first or no balance can be known.
+Press Record and what is owed is worked out again. The transfer that meets the
+fee makes them **paid — place held**, and **The money** folds away with the
+status that held it open — the balance is settled, so there is nothing left to
+keep a record of. It is all worked out from `fee_amount` on their program, so
+set that first or no balance can be known.
 
 The amount may be left empty. Then nothing is recorded as received and only
 the due date moves — for an arrangement agreed before any of it has been sent,
 or one that changes later.
 
+Recording only ever moves someone forward. Money that has arrived overrules the
+status, and money that has not leaves it where you put it — so an arrangement
+with nothing against it yet keeps its record open instead of closing itself as
+soon as you save the date.
+
 **Remove** takes a payment back off a row, and asks first. It is for a figure
-typed wrong; the status is put back in step afterwards, so removing the
-transfer that settled someone returns them to a balance owed.
+typed wrong. The balance is worked out again afterwards, so removing the
+transfer that settled someone returns them to **part paid — balance due**, and
+removing the only transfer on a row leaves it part paid with an empty record,
+ready for the figure you meant.
+
+To reach the record on someone already **paid** — to read back which day a
+transfer landed, to fix a date, or to take one off — set them **part paid —
+balance due** again and it comes back with every transfer still on it. Nothing
+was deleted; the record follows the status, and the CSV export never hides it
+either way.
+
+That is also the way to undo a wrong press. Going straight from **paid** back to
+**registered — unpaid** leaves the transfer the register wrote sitting on a row
+that shows no record, so go by way of **part paid**, remove it, and carry on
+from there.
+
+A malformed date is not worth losing a press over, so one falls back to today
+rather than refusing the save — the status is the thing you came to change.
 
 Two figures sit at the top of the register: **received** and **still owed**,
 across everyone registered, part paid, or paid. The waitlist and the withdrawn
 are in neither — a withdrawn person's part payment is a refund waiting to go
-out, not income. The CSV export carries the same numbers a person at a time,
-as plain figures a spreadsheet will sum.
+out, not income.
 
-The status dropdown still lets you set any of these by hand, for a fee settled
-some other way — cash, or a transfer you would rather not itemise. Recording a
-payment afterwards will set it again from what has arrived.
+Both are read off the transfers, because every route to **paid** leaves one
+behind: an instalment you recorded, or the balance the register wrote when you
+marked the person paid. Someone **part paid** counts what has arrived and owes
+the rest. Someone **paid** owes nothing.
+
+The one place the fee stands in for a transfer is a row marked paid *before* the
+register started writing the balance down. Those rows have no payments behind
+them, so their fee is counted as received — and because that figure is read from
+the program rather than the row, editing `fee_amount` mid-term moves it. Newer
+rows are immune, being read off the transfer itself.
+
+The CSV export is the itemised view, a person at a time, as plain figures a
+spreadsheet will sum. It reads straight from the payments table, so it carries
+every transfer on the register — including the ones on a paid row, whose record
+is not shown on the page.
 
 ### Writing to someone part way through
 

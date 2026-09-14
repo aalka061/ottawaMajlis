@@ -78,3 +78,35 @@ export function settle(paid: number, fee: number | null): Settlement {
     partial: paidCents > 0 && !settled,
   };
 }
+
+/**
+ * What one row puts into a tally, which is not always what its payments say.
+ *
+ * Almost always it is the payments: marking someone paid writes the balance as
+ * a transfer, so a paid row carries its own record and is read off it, and an
+ * overpayment shows as the amount that actually landed.
+ *
+ * The fee stands in only where a paid row has no payments at all — a row marked
+ * paid before the register wrote the transfer for you. It owes nothing either
+ * way, which is the part that matters: the status is the claim that the fee was
+ * settled, and a register that goes on asking a settled person for money is the
+ * thing this avoids.
+ *
+ * The register and the CSV export both go through here. They used to work the
+ * figures out separately, which was harmless while every payment was itemised
+ * and wrong the moment one was not.
+ */
+export function tally(
+  stands: Settlement,
+  status: string,
+): { received: number; outstanding: number | null } {
+  if (status !== "confirmed") {
+    return { received: stands.paid, outstanding: stands.outstanding };
+  }
+  return {
+    received: stands.paid > 0 ? stands.paid : (stands.fee ?? 0),
+    // A program with no fee amount set has nothing to have met, so a paid row
+    // on one is still not claiming a balance of zero.
+    outstanding: stands.fee === null ? null : 0,
+  };
+}
