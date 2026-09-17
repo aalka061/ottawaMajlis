@@ -15,7 +15,10 @@ Running cost: **$0/year**, plus a domain if you want one (~$12–15/year).
 | --- | --- |
 | `/` | The whole site: the open program, end to end, with the registration form |
 | `/programs/[slug]` | The same page for a program that is not the open one — a draft, or one that has closed. Kept out of search results; it is there so you can read a program before you open it |
+| `/questions` | Questions people have asked and the answers to them, and the form for asking one |
 | `/admin` | The register: everyone who signed up, their status, your notes, the payment reminder and confirmation emails, CSV export, delete |
+| `/admin/questions` | Every question asked, unanswered first |
+| `/admin/questions/[id]` | Answering one of them |
 | `/admin/login` | One shared password |
 
 A registration has three live states: **registered — unpaid** (they submitted
@@ -82,7 +85,12 @@ ADMIN_PASSWORD=pick-something-long
 ADMIN_SESSION_SECRET=paste-output-of-openssl-rand-hex-32
 RESEND_API_KEY=re_...
 EMAIL_FROM="Ottawa Majless <majless@your-verified-domain>"
+NEXT_PUBLIC_SITE_URL=https://your-domain.ca
 ```
+
+`NEXT_PUBLIC_SITE_URL` is only read by the letters that link back to the site.
+On Vercel the production host is used when it is not set, so it matters most
+locally — without it a letter sent from your laptop links to your laptop.
 
 The service role key bypasses row level security, so it stays on the server —
 never put it in a `NEXT_PUBLIC_` variable and never commit `.env.local`.
@@ -92,7 +100,7 @@ never put it in a `NEXT_PUBLIC_` variable and never commit `.env.local`.
 1. Push this repository to GitHub.
 2. Import it at [vercel.com](https://vercel.com) — the Hobby plan is free and
    fits this site comfortably.
-3. Add the same six environment variables in the Vercel project settings.
+3. Add the same environment variables in the Vercel project settings.
 4. Deploy. You get `something.vercel.app` for free; point your own domain at it
    later from the same screen if you buy one.
 
@@ -332,6 +340,96 @@ in — so someone answering the confirmation reaches you where you already look.
 
 The sending itself lives in `src/lib/email.ts`, kept apart from the wording of
 any one message: `sendEmail` is the plumbing, and `paymentConfirmation`,
-`paymentReminder` and `partPaymentReceipt` are the three letters. A later feature that writes to everyone
+`paymentReminder`, `partPaymentReceipt`, `partPaymentDateRequest` and
+`questionAnswered` are the letters. A later feature that writes to everyone
 on a program — schedule changes, the Zoom link when it exists — adds its own
 message beside them and sends it the same way.
+
+## Questions and answers
+
+`/questions` is the archive: what has been asked, and what was answered. It is
+open to anyone, including search engines, because that is the point of keeping
+it — the same questions come round every term, and one answered in writing
+should not have to be asked again.
+
+Each question is a line you click to open. Under the answer sits a small line
+naming the program, the session it came out of, and the day it was answered.
+No name is ever shown beside a question, and no email address.
+
+### Who can ask
+
+Asking is for people on the register. The form asks for the email someone
+registered with and looks it up; everyone is let through but the withdrawn,
+unpaid and waitlisted included — they are the ones still deciding, and they ask
+the most. Their name and program come from their registration, so nothing extra
+is asked of them.
+
+It is not proof of who they are. Someone who knows a classmate's address could
+ask in their name, and that is fine: nothing reaches the site on its own, a
+question is published without a name, and you have read it before it goes up.
+What the check does buy is a wall against the machines that fill in every form
+they find on the web.
+
+There is also a hidden field no person ever sees — a bot that fills it in is
+thanked and ignored — a cap of five questions an address a day, and a limit of
+2000 characters.
+
+Someone who has not registered is told to write to the contact address instead.
+Their question can still end up on the page: see **Writing one yourself** below.
+
+### Answering
+
+`/admin/questions` lists every question, unanswered first, one line each.
+Opening one gives it a page of its own — their words in large type, and a box
+to answer in. Answers are plain prose: a blank line starts a new paragraph, and
+nothing else means anything, so there is no markup that can break in a letter
+or on the page.
+
+Above the answer is **as it will appear on the page**, which starts as a copy of
+what they wrote. Edit it. A question asked about one person's own situation
+reads as a general ruling to whoever finds it next, and taking out what was
+personal is what makes the archive safe to leave up. Their words as they wrote
+them are kept beside it and never change.
+
+Which program and which session fold away underneath. A question asked through
+the form already carries the program of whoever asked it.
+
+A question is in one of four states:
+
+| | |
+| --- | --- |
+| **Waiting for an answer** | it arrived and nobody has answered it |
+| **Answered — not on the site** | written, but not up: a draft, or a wording still being worked on |
+| **On the site** | published at `/questions` |
+| **Answered privately** | answered, and not going up — a private matter, or one meant for the person alone |
+
+**Publish the answer** puts it up; publishing is refused while the answer is
+empty. **Take it off the site** moves it back to answered and keeps everything.
+A question taken down, reworded and put back keeps its original date, so it
+does not jump to the top of the archive as though it were new.
+
+### Writing one yourself
+
+At the bottom of `/admin/questions` is a fold for writing a question that
+nobody asked through the form — one asked out loud after a session, one that
+came in by email, or one you know people wonder about. It has no asker, so
+there is nobody to write back to when it goes up.
+
+It is also how the page opens with something on it. An empty Q&A page reads as
+an abandoned one.
+
+### Telling them it is answered
+
+The form has a checkbox for being told when the answer comes. Ticking it
+records the wish and nothing more: the letter goes when you press **Tell them
+it is answered**, at the bottom of the question's page, once it is published or
+closed. Press **?** first to read it exactly as it will go out.
+
+The letter carries the answer itself rather than only a link — they asked a
+question, and a letter that says "we have replied, go and look" wastes the
+reader's time. A published answer names the page as well, since everything else
+that has been asked is the part they did not ask for. One answered privately
+links to nothing, because it is not there.
+
+Like every other letter here, the date it went out is shown beside the button,
+and it can be sent again.
