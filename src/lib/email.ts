@@ -1,8 +1,8 @@
 import "server-only";
 import { Resend } from "resend";
 import { formatMoney, type Settlement } from "./money";
-import { CONTACT_EMAIL, ETRANSFER_EMAIL } from "./site";
-import type { Payment, Program, Registration } from "./types";
+import { CONTACT_EMAIL, ETRANSFER_EMAIL, SITE_URL } from "./site";
+import type { Payment, Program, Question, Registration } from "./types";
 
 /**
  * Who the mail comes from. The majless has no domain of its own yet, so it
@@ -398,4 +398,87 @@ export function partPaymentDateRequest(
   settlement: Settlement,
 ): Message {
   return partPaymentLetter(registration, program, payments, settlement, true);
+}
+
+/**
+ * Prose as the HTML side wants it: a paragraph per blank line, everything
+ * escaped. The answer is the one piece of a letter here that is typed rather
+ * than written in code, and it is typed as plain prose — no markup to break,
+ * and no way to reach raw HTML through it.
+ */
+function paragraphs(text: string) {
+  return text
+    .split(/\n\s*\n/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map(
+      (part) =>
+        `<p style="margin:20px 0 0;font-size:16px;line-height:1.6;">${escape(
+          part,
+        ).replace(/\n/g, "<br>")}</p>`,
+    )
+    .join("\n    ");
+}
+
+/**
+ * Their question has been answered.
+ *
+ * Only ever sent by hand, to someone who asked for it when they wrote in. The
+ * answer travels in the letter rather than only behind a link: they asked a
+ * question and this is the answer to it, and a letter that says "we have
+ * replied, go and look" is a letter that wastes the reader's time.
+ *
+ * A published question carries the page as well, because the page is the part
+ * they did not ask for — everything else that has been asked. One answered
+ * privately carries no link at all: it is not there, and pointing at a page it
+ * is not on is worse than saying nothing.
+ */
+export function questionAnswered(question: Question): Message | null {
+  if (!question.asker_email || !question.answer.trim()) return null;
+
+  const name = firstName(question.asker_name ?? "");
+  const published = question.status === "published";
+  const url = `${SITE_URL}/questions`;
+  const greeting = name ? `Assalamu alaikum ${name},` : "Assalamu alaikum,";
+
+  const lines = [
+    greeting,
+    "",
+    "Your question has been answered.",
+    "",
+    "What you asked:",
+    ...question.question.split("\n").map((line) => `  ${line}`),
+    "",
+    question.answer,
+    ...(published
+      ? [
+          "",
+          `It is on the questions page as well, with everything else that has been asked: ${url}`,
+        ]
+      : []),
+    "",
+    "Ottawa Majless",
+    CONTACT_EMAIL,
+  ];
+
+  const html = `<div style="margin:0;padding:24px;background:#f4f1ea;font-family:Georgia,'Times New Roman',serif;color:#1f2a24;">
+  <div style="max-width:34rem;margin:0 auto;background:#faf8f3;border:1px solid #c8a45c;padding:32px;">
+    <p style="margin:0;font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9b2f2f;">Your question</p>
+    <p style="margin:20px 0 0;font-size:22px;line-height:1.4;">${escape(greeting)} your question has been answered.</p>
+    ${block("What you asked", question.question.split("\n"))}
+    ${paragraphs(question.answer)}
+    ${
+      published
+        ? `<p style="margin:24px 0 0;font-size:16px;line-height:1.6;">It is on the <a href="${url}" style="color:#9b2f2f;">questions page</a> as well, with everything else that has been asked.</p>`
+        : ""
+    }
+    <p style="margin:32px 0 0;font-size:14px;line-height:1.6;color:#5c6b63;">Ottawa Majless<br><a href="mailto:${CONTACT_EMAIL}" style="color:#9b2f2f;">${CONTACT_EMAIL}</a></p>
+  </div>
+</div>`;
+
+  return {
+    subject: "Your question has been answered",
+    text: lines.join("\n"),
+    html,
+  };
 }
