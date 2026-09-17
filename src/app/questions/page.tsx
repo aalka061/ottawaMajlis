@@ -4,7 +4,6 @@ import { getPrograms, getSettings, listPublishedQuestions } from "@/lib/data";
 import { AskForm } from "@/components/AskForm";
 import { QuestionList, type Entry } from "@/components/QuestionList";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
-import { CONTACT_EMAIL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -101,49 +100,32 @@ export default async function QuestionsPage() {
         )}
 
         {/*
-          * The anchor stays whether or not the form does. Letters and links
-          * already point at /questions#ask, and one of them landing nowhere is
-          * a worse way to learn that asking is closed than being told.
+          * Closed, the whole section goes — heading, note and all. A page that
+          * explains at length why you cannot do the thing is louder about the
+          * thing than a page that simply is the archive, which is what this
+          * page is for the rest of the year anyway.
           */}
-        <section
-          id="ask"
-          className="mt-12 border-t border-line pt-10 pb-16 sm:mt-16 sm:pt-12 sm:pb-20"
-        >
-          <p className="rubric">Ask</p>
-          {settings.questions_open ? (
-            <>
-              <h2 className="mt-3 max-w-2xl font-display text-2xl leading-tight sm:text-3xl">
-                Something of your own
-              </h2>
-              <p className="mt-4 max-w-prose text-slate">
-                Questions are read and answered by hand. Nothing you write here
-                appears on the page on its own, and nothing appears with your
-                name on it.
-              </p>
-              <div className="mt-8">
-                <AskForm />
-              </div>
-            </>
-          ) : (
-            <>
-              <h2 className="mt-3 max-w-2xl font-display text-2xl leading-tight sm:text-3xl">
-                Asking is closed just now
-              </h2>
-              <p className="mt-4 max-w-prose text-slate">
-                Questions are taken while a term is running. Everything answered
-                so far stays on this page, and the form opens again with the
-                next one. Anything that will not keep can go to{" "}
-                <a
-                  href={`mailto:${CONTACT_EMAIL}`}
-                  className="underline decoration-brass underline-offset-4 hover:text-madder"
-                >
-                  {CONTACT_EMAIL}
-                </a>
-                .
-              </p>
-            </>
-          )}
-        </section>
+        {settings.questions_open ? (
+          <section
+            id="ask"
+            className="mt-12 border-t border-line pt-10 pb-16 sm:mt-16 sm:pt-12 sm:pb-20"
+          >
+            <p className="rubric">Ask</p>
+            <h2 className="mt-3 max-w-2xl font-display text-2xl leading-tight sm:text-3xl">
+              Something of your own
+            </h2>
+            <p className="mt-4 max-w-prose text-slate">
+              Questions are read and answered by hand. Nothing you write here
+              appears on the page on its own, and nothing appears with your name
+              on it.
+            </p>
+            <div className="mt-8">
+              <AskForm />
+            </div>
+          </section>
+        ) : (
+          <div className="pb-16 sm:pb-20" />
+        )}
       </main>
       <SiteFooter />
     </>

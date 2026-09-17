@@ -385,11 +385,12 @@ at the bottom of the page** — that closes the second without touching the
 first.
 
 Closed, `/questions` is exactly what it was to read. Every published answer is
-still there, still found by search engines, still linkable. Where the form
-stood there is a line saying asking is closed just now, that it opens again
-with the next term, and the contact address for anything that will not keep.
-Nothing can be sent to it either: a stale tab that posts the form anyway is
-turned away with the same words.
+still there, still found by search engines, still linkable. The form and its
+heading are simply gone — the page ends with the last answer, and says nothing
+about asking at all. A page that explains at length why you cannot do the thing
+is louder about the thing than a page that is just the archive, which is what
+this one is for the rest of the year anyway. Nothing can be sent to it either:
+a stale tab that posts the form after it has closed is turned away.
 
 It does not close your own way in. **Writing one yourself** still works while
 the public form is shut, which is what you want for a question asked out loud
