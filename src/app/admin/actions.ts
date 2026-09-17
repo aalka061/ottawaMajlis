@@ -10,9 +10,12 @@ import {
 } from "@/lib/auth";
 import {
   addPayment,
+  createQuestion,
   deletePayment,
+  deleteQuestion,
   deleteRegistration,
   getProgramById,
+  getQuestionById,
   getRegistrationById,
   listPayments,
   listPaymentsFor,
@@ -21,9 +24,11 @@ import {
   markPartPaymentEmailSent,
   markPaymentEmailSent,
   markPaymentReminderSent,
+  markQuestionNotified,
   setAdminNote,
   setNextPaymentDue,
   setProgramFields,
+  setQuestionFields,
   setRegistrationStatus,
   totalsByRegistration,
   type ProgramEdit,
@@ -34,6 +39,7 @@ import {
   partPaymentReceipt,
   paymentConfirmation,
   paymentReminder,
+  questionAnswered,
   sendEmail,
 } from "@/lib/email";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/form-state";
@@ -49,6 +55,7 @@ import {
   STATUS_ORDER,
   type Payment,
   type Program,
+  type QuestionStatus,
   type Registration,
   type RegistrationStatus,
 } from "@/lib/types";
@@ -825,5 +832,298 @@ export async function updateProgram(
     ...EMPTY_FORM_STATE,
     status: "ok",
     message: "Saved. The site is showing it now.",
+  };
+}
+
+/**
+ * What a press of one of the buttons under a question means.
+ *
+ * `save` keeps the words without deciding anything, which is most presses —
+ * an answer written in two sittings, a wording still being worked on. The
+ * other four are the decisions, and each is a button of its own rather than a
+ * status dropdown: what you are doing is publishing something, not setting a
+ * field.
+ */
+const QUESTION_INTENTS = [
+  "save",
+  "publish",
+  "unpublish",
+  "private",
+  "reopen",
+] as const;
+
+type QuestionIntent = (typeof QUESTION_INTENTS)[number];
+
+/**
+ * A question and its answer, saved — and, if a button said so, published,
+ * taken down, or closed.
+ *
+ * Publishing is refused without both halves written. Everything else here can
+ * be half done and saved: a question arrives with no answer, and an answer
+ * gets written over a few sittings. It is only the page that needs both.
+ */
+export async function saveQuestion(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return EMPTY_FORM_STATE;
+
+  const intentRaw = String(formData.get("intent") ?? "save");
+  const intent = (
+    QUESTION_INTENTS.includes(intentRaw as QuestionIntent) ? intentRaw : "save"
+  ) as QuestionIntent;
+
+  const existing = await getQuestionById(id);
+  if (!existing) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "That question is no longer in the database.",
+    };
+  }
+
+  const question = text(formData, "question") ?? existing.question;
+  const answer = text(formData, "answer") ?? existing.answer;
+  const sessionNote = textOrNull(formData, "session_note");
+  const programRaw = formData.get("program_id");
+  const programId =
+    programRaw === null ? undefined : String(programRaw).trim() || null;
+
+  const fieldErrors: Record<string, string> = {};
+  if (!question) fieldErrors.question = "A question needs its words.";
+  if (intent === "publish" && !answer) {
+    fieldErrors.answer = "Nothing to publish yet — the answer is empty.";
+  }
+  if (Object.keys(fieldErrors).length > 0) {
+    return {
+      status: "error",
+      message: "Nothing was saved. Look at the fields marked below.",
+      fieldErrors,
+    };
+  }
+
+  const now = new Date().toISOString();
+
+  // The status the press leaves behind. A plain save decides nothing, except
+  // that a question with an answer under it is no longer waiting for one.
+  const status: QuestionStatus =
+    intent === "publish"
+      ? "published"
+      : intent === "private"
+        ? "closed"
+        : intent === "unpublish" || intent === "reopen"
+          ? "answered"
+          : existing.status === "new" && answer
+            ? "answered"
+            : existing.status;
+
+  await setQuestionFields(id, {
+    question,
+    answer,
+    session_note: sessionNote,
+    program_id: programId,
+    status,
+    // When it was first answered, kept from the first time an answer existed:
+    // the date on the page is when the answer was given, not when its typos
+    // were fixed.
+    answered_at: answer && !existing.answered_at ? now : undefined,
+    // The same for publishing. A question taken down to be reworded and put
+    // back keeps its place in the archive rather than jumping to the top as
+    // though it were new.
+    published_at:
+      status === "published" && !existing.published_at ? now : undefined,
+  });
+
+  revalidatePath("/admin/questions");
+  revalidatePath(`/admin/questions/${id}`);
+  revalidatePath("/questions");
+
+  return {
+    ...EMPTY_FORM_STATE,
+    status: "ok",
+    message:
+      intent === "publish"
+        ? "Published. It is on the questions page now."
+        : intent === "unpublish"
+          ? "Taken off the site. The answer is kept here."
+          : intent === "private"
+            ? "Closed. It stays here and never goes up."
+            : intent === "reopen"
+              ? "Open again, and not on the site."
+              : "Saved.",
+  };
+}
+
+/**
+ * A question entered here rather than asked through the form: one asked out
+ * loud after a session, one that came in by email from someone not on the
+ * register, or one nobody asked and everybody wonders.
+ *
+ * It has no asker, which is the whole difference. Nothing is owed to anyone
+ * when it is published, so there is nobody to tell, and the wording is already
+ * the public wording because whoever typed it wrote it that way.
+ */
+export async function addQuestion(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const question = text(formData, "question") ?? "";
+  const answer = text(formData, "answer") ?? "";
+  const publish = String(formData.get("intent") ?? "") === "publish";
+
+  const fieldErrors: Record<string, string> = {};
+  if (!question) fieldErrors.question = "A question needs its words.";
+  if (publish && !answer) {
+    fieldErrors.answer = "Nothing to publish yet — the answer is empty.";
+  }
+  if (Object.keys(fieldErrors).length > 0) {
+    return {
+      status: "error",
+      message: "Nothing was saved. Look at the fields marked below.",
+      fieldErrors,
+    };
+  }
+
+  const created = await createQuestion({
+    asker_email: null,
+    asker_name: null,
+    program_id: textOrNull(formData, "program_id") ?? null,
+    session_note: textOrNull(formData, "session_note") ?? null,
+    // Typed here, so what was asked and what the page shows are the same
+    // words. They can still part company later, in the editor.
+    asked: question,
+    question,
+    notify: false,
+  });
+
+  const now = new Date().toISOString();
+  if (answer) {
+    await setQuestionFields(created.id, {
+      answer,
+      status: publish ? "published" : "answered",
+      answered_at: now,
+      published_at: publish ? now : undefined,
+    });
+  }
+
+  revalidatePath("/admin/questions");
+  revalidatePath("/questions");
+
+  return {
+    ...EMPTY_FORM_STATE,
+    status: "ok",
+    message: publish
+      ? "Published. It is on the questions page now."
+      : answer
+        ? "Added, with its answer. Publish it when you are ready."
+        : "Added. It is waiting for an answer.",
+  };
+}
+
+/**
+ * Erases a question. For one that should never have been a row — a test, or
+ * something posted twice. A question answered but not for the page is closed
+ * instead, which keeps it.
+ */
+export async function removeQuestion(formData: FormData) {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  await deleteQuestion(id);
+  revalidatePath("/admin/questions");
+  revalidatePath("/questions");
+  redirect("/admin/questions");
+}
+
+/**
+ * Tells someone their question has been answered, and records that we did.
+ *
+ * Only ever a press of a button, like every other letter here — the checkbox
+ * on the form records that they would like to hear, and nothing more than
+ * that. The letter carries the answer itself, so it is worth reading even by
+ * someone who never opens the page.
+ *
+ * It refuses while the question is still being worked on. "Answered" is a
+ * state for a draft and a wording still being argued with, and a letter sent
+ * out of it would carry words that are about to change.
+ */
+export async function sendAnswerNotice(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return EMPTY_FORM_STATE;
+
+  if (!isEmailConfigured) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "Email is not set up. Add RESEND_API_KEY to your environment.",
+    };
+  }
+
+  const question = await getQuestionById(id);
+  if (!question) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "That question is no longer in the database.",
+    };
+  }
+
+  if (!question.asker_email) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message:
+        "Nobody asked this one — it was written here, so there is nobody to write to.",
+    };
+  }
+
+  if (question.status !== "published" && question.status !== "closed") {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message:
+        "Publish it first, or close it as answered privately. While it is still being written the answer can still change.",
+    };
+  }
+
+  const letter = questionAnswered(question);
+  if (!letter) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "There is no answer to send yet.",
+    };
+  }
+
+  try {
+    await sendEmail(question.asker_email, letter);
+  } catch (error) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: `It was not sent: ${error instanceof Error ? error.message : "the mail server refused it"}. Nothing was recorded, so you can try again.`,
+    };
+  }
+
+  await markQuestionNotified(id);
+  revalidatePath("/admin/questions");
+  revalidatePath(`/admin/questions/${id}`);
+
+  return {
+    ...EMPTY_FORM_STATE,
+    status: "ok",
+    message: `Sent to ${question.asker_email}.`,
   };
 }

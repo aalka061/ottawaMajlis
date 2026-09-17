@@ -4,6 +4,7 @@ import { isSignedIn } from "@/lib/auth";
 import {
   listPayments,
   listPrograms,
+  listQuestions,
   listRegistrations,
   totalsByRegistration,
 } from "@/lib/data";
@@ -125,11 +126,15 @@ export default async function AdminPage({ searchParams }: Params) {
     );
   }
 
-  const [registrations, programs, payments] = await Promise.all([
+  const [registrations, programs, payments, questions] = await Promise.all([
     listRegistrations(),
     listPrograms(),
     listPayments(),
+    listQuestions(),
   ]);
+  // Questions live on their own page; what belongs here is the one number
+  // that is waiting on someone — how many nobody has answered yet.
+  const unanswered = questions.filter((q) => q.status === "new").length;
   const programTitle = new Map(programs.map((p) => [p.id, p.title]));
   const programFee = new Map(programs.map((p) => [p.id, p.fee_amount]));
 
@@ -221,6 +226,9 @@ export default async function AdminPage({ searchParams }: Params) {
               Remind who owes ({owing.length})
             </Link>
           ) : null}
+          <Link href="/admin/questions" className="btn btn-quiet">
+            Questions{unanswered > 0 ? ` (${unanswered})` : ""}
+          </Link>
           <Link href="/admin/export" className="btn btn-quiet">
             Export CSV
           </Link>
