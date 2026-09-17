@@ -205,6 +205,12 @@ export type Question = {
   answer: string;
   /** The recording in storage, null when the answer is written only. */
   answer_audio: string | null;
+  /**
+   * How long it runs, in seconds — shown on the list so nobody has to open an
+   * answer to learn whether they have time for it. Null for a recording
+   * linked from elsewhere, which is not ours to measure.
+   */
+  answer_audio_seconds: number | null;
   status: QuestionStatus;
   /** Whether they asked to be told when it is answered. */
   notify: boolean;

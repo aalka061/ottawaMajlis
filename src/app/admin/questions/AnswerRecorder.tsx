@@ -58,7 +58,12 @@ async function toMp3(input: Blob, onProgress: (done: number) => void) {
   const tail = encoder.flush();
   if (tail.length > 0) parts.push(tail);
 
-  return new Blob(parts as BlobPart[], { type: ANSWER_AUDIO_TYPE });
+  return {
+    blob: new Blob(parts as BlobPart[], { type: ANSWER_AUDIO_TYPE }),
+    // Kept with the recording so the list can say how long it runs without
+    // fetching every file to find out.
+    seconds: Math.round(audio.duration),
+  };
 }
 
 function clock(seconds: number) {
@@ -94,7 +99,11 @@ export function AnswerRecorder({
   const [seconds, setSeconds] = useState(0);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [take, setTake] = useState<{ blob: Blob; url: string } | null>(null);
+  const [take, setTake] = useState<{
+    blob: Blob;
+    url: string;
+    seconds: number;
+  } | null>(null);
 
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
@@ -121,7 +130,11 @@ export function AnswerRecorder({
     try {
       const mp3 = await toMp3(source, setProgress);
       dropTake();
-      setTake({ blob: mp3, url: URL.createObjectURL(mp3) });
+      setTake({
+        blob: mp3.blob,
+        url: URL.createObjectURL(mp3.blob),
+        seconds: mp3.seconds,
+      });
       setStage("ready");
     } catch {
       setStage("idle");
@@ -198,7 +211,11 @@ export function AnswerRecorder({
       });
       if (!put.ok) throw new Error(`storage answered ${put.status}`);
 
-      const kept = await keepAnswerRecording(questionId, signed.path);
+      const kept = await keepAnswerRecording(
+        questionId,
+        signed.path,
+        take.seconds,
+      );
       if ("error" in kept && kept.error) throw new Error(kept.error);
 
       dropTake();
@@ -246,7 +263,7 @@ export function AnswerRecorder({
 
       {take ? (
         <div className="border border-line bg-stone p-4">
-          <p className="field-label">This take</p>
+          <p className="field-label">This take · {clock(take.seconds)}</p>
           <audio controls src={take.url} className="mt-3 w-full" />
           <div className="mt-4 flex flex-wrap items-center gap-4">
             <button

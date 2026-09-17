@@ -120,6 +120,9 @@ create table if not exists questions (
   -- searched, quoted, or read by someone who cannot hear it.
   answer text not null default '',
   answer_audio text,
+  -- How long the recording runs, for the label on the list. Null for one
+  -- linked from elsewhere, which is not ours to measure.
+  answer_audio_seconds integer,
   -- new: arrived, unanswered. answered: written, not on the site.
   -- published: on the site. closed: answered privately, or not one to publish.
   status text not null default 'new'

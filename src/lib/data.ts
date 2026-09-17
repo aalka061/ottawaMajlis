@@ -392,6 +392,7 @@ export type QuestionEdit = Pick<
   | "question"
   | "answer"
   | "answer_audio"
+  | "answer_audio_seconds"
   | "status"
   | "answered_at"
   | "published_at"

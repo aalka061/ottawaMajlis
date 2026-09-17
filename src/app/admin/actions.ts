@@ -1178,7 +1178,11 @@ export async function startAnswerUpload(questionId: string) {
  * a signed URL was minted for this question's own folder, and anything else
  * is somebody else's file.
  */
-export async function keepAnswerRecording(questionId: string, path: string) {
+export async function keepAnswerRecording(
+  questionId: string,
+  path: string,
+  seconds: number,
+) {
   if (!(await isSignedIn())) redirect("/admin/login");
 
   if (!path.startsWith(`${questionId}/`)) {
@@ -1190,7 +1194,11 @@ export async function keepAnswerRecording(questionId: string, path: string) {
     return { error: "That question is no longer in the database." };
   }
 
-  await setQuestionFields(questionId, { answer_audio: path });
+  await setQuestionFields(questionId, {
+    answer_audio: path,
+    answer_audio_seconds:
+      Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds) : null,
+  });
 
   // The one it replaced, if we were the ones keeping it. A link to somewhere
   // else is not ours to delete.
@@ -1247,7 +1255,10 @@ export async function setAnswerAudioLink(
     };
   }
 
-  await setQuestionFields(id, { answer_audio: link || null });
+  await setQuestionFields(id, {
+    answer_audio: link || null,
+    answer_audio_seconds: null,
+  });
 
   const old = question.answer_audio;
   if (isStoredHere(old) && old !== link) {
@@ -1279,7 +1290,10 @@ export async function clearAnswerAudio(formData: FormData) {
   const question = await getQuestionById(id);
   if (!question) return;
 
-  await setQuestionFields(id, { answer_audio: null });
+  await setQuestionFields(id, {
+    answer_audio: null,
+    answer_audio_seconds: null,
+  });
   if (isStoredHere(question.answer_audio)) {
     try {
       await deleteAnswerRecording(question.answer_audio);
