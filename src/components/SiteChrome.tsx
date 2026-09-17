@@ -56,6 +56,10 @@ export function SiteFooter() {
           .
         </p>
         <p className="font-mono text-[0.6875rem] tracking-[0.14em] text-slate uppercase">
+          <Link href="/questions" className="hover:text-madder">
+            Questions
+          </Link>
+          <span className="px-2 text-line">·</span>
           Ottawa · Ontario
         </p>
       </div>

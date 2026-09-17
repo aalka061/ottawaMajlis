@@ -68,6 +68,7 @@ export function ProgramPage({ program }: { program: Program }) {
     ...(program.teacher_name
       ? [{ href: "#teacher", label: "Who teaches" }]
       : []),
+    { href: "/questions", label: "Questions" },
     ...(open ? [{ href: "#register", label: "Register" }] : []),
   ];
 
