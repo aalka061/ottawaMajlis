@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isSignedIn } from "@/lib/auth";
-import { listPrograms, listQuestions } from "@/lib/data";
+import { getSettings, listPrograms, listQuestions } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import {
   QUESTION_STATUS_LABEL,
@@ -10,7 +10,7 @@ import {
   type Question,
   type QuestionStatus,
 } from "@/lib/types";
-import { addQuestion } from "../actions";
+import { addQuestion, setAsking } from "../actions";
 import { NewQuestionForm } from "./QuestionForm";
 
 export const dynamic = "force-dynamic";
@@ -72,9 +72,10 @@ export default async function QuestionsAdminPage() {
     );
   }
 
-  const [questions, programs] = await Promise.all([
+  const [questions, programs, settings] = await Promise.all([
     listQuestions(),
     listPrograms(),
+    getSettings(),
   ]);
   const programTitle = new Map(programs.map((p) => [p.id, p.title]));
   const counts = QUESTION_STATUS_ORDER.map((status) => ({
@@ -108,6 +109,32 @@ export default async function QuestionsAdminPage() {
         answer it; what someone asked is kept as they wrote it, and no name is
         ever shown beside an answer.
       </p>
+
+      {/*
+        * The one switch on this page that changes what the public sees before
+        * anything is published. It closes the form only: the answers stay up,
+        * and the button below still adds a question by hand.
+        */}
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border border-line px-4 py-4">
+        <div className="max-w-prose">
+          <p className="field-label">The form at the bottom of the page</p>
+          <p className="mt-2 text-sm text-slate">
+            {settings.questions_open
+              ? "Open. Anyone on the register can ask, and what they ask arrives here."
+              : "Closed. Everything published is still on the page to read; the form for asking is not there, and nothing can be sent to it."}
+          </p>
+        </div>
+        <form action={setAsking}>
+          <input
+            type="hidden"
+            name="open"
+            value={settings.questions_open ? "false" : "true"}
+          />
+          <button type="submit" className="btn btn-quiet">
+            {settings.questions_open ? "Close it" : "Open it"}
+          </button>
+        </form>
+      </div>
 
       <dl className="mt-10 grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-4">
         {counts.map(({ status, count }) => (

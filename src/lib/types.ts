@@ -241,3 +241,19 @@ export type Payment = {
   note: string | null;
   created_at: string;
 };
+
+/**
+ * What belongs to the site rather than to any one program. One row in the
+ * database, so one object here.
+ */
+export type Settings = {
+  /**
+   * Whether the form at the bottom of /questions takes anything. The archive
+   * above it is unaffected either way: closing the form is how a term ends
+   * without the answers going with it.
+   */
+  questions_open: boolean;
+};
+
+/** What the site runs on before anybody has said otherwise. */
+export const DEFAULT_SETTINGS: Settings = { questions_open: true };

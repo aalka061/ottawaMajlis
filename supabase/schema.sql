@@ -135,6 +135,18 @@ create table if not exists questions (
   published_at timestamptz
 );
 
+-- What belongs to the site rather than to any one program. One row: the
+-- `id boolean check (id)` makes a second one impossible, and settings that can
+-- exist twice get read from the wrong one eventually.
+create table if not exists settings (
+  id boolean primary key default true check (id),
+  -- Whether the form at the bottom of /questions takes anything. False leaves
+  -- the archive exactly as it was and puts a note where the form stood. It
+  -- never closes the register's own way in: a question asked out loud after a
+  -- session is still typed into /admin/questions.
+  questions_open boolean not null default true
+);
+
 -- The public page reads the published ones, newest first, and nothing else.
 create index if not exists questions_published_idx
   on questions (published_at desc)
@@ -150,6 +162,10 @@ alter table programs enable row level security;
 alter table registrations enable row level security;
 alter table payments enable row level security;
 alter table questions enable row level security;
+alter table settings enable row level security;
+
+-- The settings row itself. Everything reads it, nothing creates it.
+insert into settings (id) values (true) on conflict (id) do nothing;
 
 -- Mapping the Divine. Edit the text here or in the Supabase table editor.
 -- The dates and location are placeholders — fill them in. Capacity is an

@@ -3,12 +3,14 @@ import { isSupabaseConfigured, supabase } from "./supabase";
 import { SEED_PROGRAMS } from "./seed";
 import { ANSWER_BUCKET } from "./audio";
 import { sumAmounts } from "./money";
+import { DEFAULT_SETTINGS } from "./types";
 import type {
   Payment,
   Program,
   Question,
   Registration,
   RegistrationStatus,
+  Settings,
 } from "./types";
 
 export async function getPrograms(): Promise<Program[]> {
@@ -328,6 +330,41 @@ export function totalsByRegistration(payments: Payment[]): Map<string, number> {
  * what people actually asked, and inventing a few would put words in their
  * mouths on a public page.
  */
+/**
+ * The site's own settings, as one row.
+ *
+ * A read that fails falls back to the defaults rather than throwing, because
+ * the only thing standing between a working site and this table is a
+ * migration somebody runs by hand. The questions page should not go down
+ * because `0019_asking_switch.sql` has not been run yet; it should carry on
+ * doing what it did before the switch existed, which is to take questions.
+ * Writing is not forgiving in the same way — see `setQuestionsOpen`.
+ */
+export async function getSettings(): Promise<Settings> {
+  if (!isSupabaseConfigured) return DEFAULT_SETTINGS;
+  const { data, error } = await supabase()
+    .from("settings")
+    .select("questions_open")
+    .maybeSingle();
+  if (error || !data) return DEFAULT_SETTINGS;
+  return { questions_open: Boolean(data.questions_open) };
+}
+
+/**
+ * Opens or closes the question form.
+ *
+ * This one throws when the table is not there. The admin pressing the button
+ * has to be told that nothing happened; a switch that silently does nothing is
+ * how you find out two weeks later that the form was open the whole time.
+ */
+export async function setQuestionsOpen(open: boolean) {
+  const { error } = await supabase()
+    .from("settings")
+    .update({ questions_open: open })
+    .eq("id", true);
+  if (error) throw new Error(error.message);
+}
+
 export async function listPublishedQuestions(): Promise<Question[]> {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase()

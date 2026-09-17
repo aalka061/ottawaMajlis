@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { answerAudioUrl } from "@/lib/audio";
-import { getPrograms, listPublishedQuestions } from "@/lib/data";
+import { getPrograms, getSettings, listPublishedQuestions } from "@/lib/data";
 import { AskForm } from "@/components/AskForm";
 import { QuestionList, type Entry } from "@/components/QuestionList";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
+import { CONTACT_EMAIL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +23,10 @@ function formatDate(iso: string) {
 }
 
 export default async function QuestionsPage() {
-  const [questions, programs] = await Promise.all([
+  const [questions, programs, settings] = await Promise.all([
     listPublishedQuestions(),
     getPrograms(),
+    getSettings(),
   ]);
   // Only the programs the site shows. A question that belongs to a draft
   // carries no program line rather than naming a program nobody can read.
@@ -98,22 +100,49 @@ export default async function QuestionsPage() {
           </>
         )}
 
+        {/*
+          * The anchor stays whether or not the form does. Letters and links
+          * already point at /questions#ask, and one of them landing nowhere is
+          * a worse way to learn that asking is closed than being told.
+          */}
         <section
           id="ask"
           className="mt-12 border-t border-line pt-10 pb-16 sm:mt-16 sm:pt-12 sm:pb-20"
         >
           <p className="rubric">Ask</p>
-          <h2 className="mt-3 max-w-2xl font-display text-2xl leading-tight sm:text-3xl">
-            Something of your own
-          </h2>
-          <p className="mt-4 max-w-prose text-slate">
-            Questions are read and answered by hand. Nothing you write here
-            appears on the page on its own, and nothing appears with your name
-            on it.
-          </p>
-          <div className="mt-8">
-            <AskForm />
-          </div>
+          {settings.questions_open ? (
+            <>
+              <h2 className="mt-3 max-w-2xl font-display text-2xl leading-tight sm:text-3xl">
+                Something of your own
+              </h2>
+              <p className="mt-4 max-w-prose text-slate">
+                Questions are read and answered by hand. Nothing you write here
+                appears on the page on its own, and nothing appears with your
+                name on it.
+              </p>
+              <div className="mt-8">
+                <AskForm />
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="mt-3 max-w-2xl font-display text-2xl leading-tight sm:text-3xl">
+                Asking is closed just now
+              </h2>
+              <p className="mt-4 max-w-prose text-slate">
+                Questions are taken while a term is running. Everything answered
+                so far stays on this page, and the form opens again with the
+                next one. Anything that will not keep can go to{" "}
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="underline decoration-brass underline-offset-4 hover:text-madder"
+                >
+                  {CONTACT_EMAIL}
+                </a>
+                .
+              </p>
+            </>
+          )}
         </section>
       </main>
       <SiteFooter />

@@ -30,6 +30,7 @@ import {
   setNextPaymentDue,
   setProgramFields,
   setQuestionFields,
+  setQuestionsOpen,
   signAnswerUpload,
   setRegistrationStatus,
   totalsByRegistration,
@@ -1307,4 +1308,20 @@ export async function clearAnswerAudio(formData: FormData) {
   revalidatePath(`/admin/questions/${id}`);
   revalidatePath("/questions");
   redirect(`/admin/questions/${id}`);
+}
+
+/**
+ * Opens or closes the question form on /questions.
+ *
+ * Only the form. The archive above it is untouched, and so is the way in from
+ * this side: a question asked out loud after a session is still typed into
+ * the register while the public form is shut.
+ */
+export async function setAsking(formData: FormData) {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  await setQuestionsOpen(String(formData.get("open")) === "true");
+
+  revalidatePath("/admin/questions");
+  revalidatePath("/questions");
 }

@@ -377,6 +377,28 @@ thanked and ignored — a cap of five questions an address a day, and a limit of
 Someone who has not registered is told to write to the contact address instead.
 Their question can still end up on the page: see **Writing one yourself** below.
 
+### Closing the form
+
+The page does two things and they come apart between terms: it is the archive,
+and it is the form for asking. `/admin/questions` has one switch — **the form
+at the bottom of the page** — that closes the second without touching the
+first.
+
+Closed, `/questions` is exactly what it was to read. Every published answer is
+still there, still found by search engines, still linkable. Where the form
+stood there is a line saying asking is closed just now, that it opens again
+with the next term, and the contact address for anything that will not keep.
+Nothing can be sent to it either: a stale tab that posts the form anyway is
+turned away with the same words.
+
+It does not close your own way in. **Writing one yourself** still works while
+the public form is shut, which is what you want for a question asked out loud
+after a session.
+
+Until `supabase/migrations/0019_asking_switch.sql` has been run the switch has
+nothing to write to. The page stays open, as it always was, and the button
+tells you it failed rather than quietly doing nothing.
+
 ### Answering
 
 `/admin/questions` lists every question, unanswered first, one line each.

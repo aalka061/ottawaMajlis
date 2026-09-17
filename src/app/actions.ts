@@ -6,6 +6,7 @@ import {
   createQuestion,
   createRegistration,
   findRegistrationsByEmail,
+  getSettings,
 } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import type { FormState } from "@/lib/form-state";
@@ -113,6 +114,20 @@ export async function askQuestion(
   // Bots fill every field they find; people never see this one.
   if (text(formData, "company")) {
     return { status: "ok", message: "Thank you.", fieldErrors: {} };
+  }
+
+  /**
+   * Asked before anything is looked at. When the form is closed the page does
+   * not render it at all, so reaching here means a stale tab or a posted
+   * request, and neither is owed a list of field errors first: the answer is
+   * the same whatever they typed.
+   */
+  if (!(await getSettings()).questions_open) {
+    return {
+      status: "error",
+      message: `Questions are closed just now — the page is still there to read, and asking opens again with the next term. Anything that will not keep can go to ${CONTACT_EMAIL}.`,
+      fieldErrors: {},
+    };
   }
 
   const email = text(formData, "email").toLowerCase();
