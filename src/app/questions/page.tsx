@@ -66,13 +66,13 @@ export default async function QuestionsPage() {
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto max-w-3xl px-6">
-        <section className="py-14 sm:py-20">
+      <main className="mx-auto max-w-3xl px-5 sm:px-6">
+        <section className="py-12 sm:py-20">
           <p className="rubric">Questions</p>
-          <h1 className="mt-4 max-w-2xl font-display text-4xl leading-tight sm:text-5xl">
+          <h1 className="mt-4 max-w-2xl font-display text-3xl leading-tight sm:text-5xl">
             What has been asked, and what was answered
           </h1>
-          <p className="mt-6 max-w-prose text-lg text-slate">
+          <p className="mt-5 max-w-prose text-base text-slate sm:mt-6 sm:text-lg">
             Questions put by people in the circle, answered by the teacher and
             kept here afterwards. They are published without the name of whoever
             asked.
@@ -98,9 +98,12 @@ export default async function QuestionsPage() {
           </>
         )}
 
-        <section id="ask" className="mt-16 border-t border-line pt-12 pb-20">
+        <section
+          id="ask"
+          className="mt-12 border-t border-line pt-10 pb-16 sm:mt-16 sm:pt-12 sm:pb-20"
+        >
           <p className="rubric">Ask</p>
-          <h2 className="mt-3 max-w-2xl font-display text-3xl leading-tight">
+          <h2 className="mt-3 max-w-2xl font-display text-2xl leading-tight sm:text-3xl">
             Something of your own
           </h2>
           <p className="mt-4 max-w-prose text-slate">

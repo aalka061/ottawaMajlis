@@ -66,7 +66,10 @@ function Answer({ text }: { text: string }) {
         .map((part) => part.trim())
         .filter(Boolean)
         .map((part, i) => (
-          <p key={i} className="mt-4 max-w-prose whitespace-pre-line first:mt-0">
+          <p
+            key={i}
+            className="mt-4 max-w-prose [overflow-wrap:anywhere] whitespace-pre-line first:mt-0"
+          >
             {part}
           </p>
         ))}
@@ -186,13 +189,13 @@ export function QuestionList({ entries }: { entries: Entry[] }) {
                 }}
                 className="group scroll-mt-24 py-5"
               >
-                <summary className="flex cursor-pointer list-none items-baseline gap-4 select-none [&::-webkit-details-marker]:hidden">
-                  <span className="mt-1 font-mono text-sm text-brass transition-colors group-open:text-madder">
+                <summary className="flex cursor-pointer list-none items-baseline gap-3 select-none sm:gap-4 [&::-webkit-details-marker]:hidden">
+                  <span className="mt-1 shrink-0 font-mono text-sm text-brass transition-colors group-open:text-madder">
                     <span className="group-open:hidden">+</span>
                     <span className="hidden group-open:inline">−</span>
                   </span>
-                  <span className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
-                    <span className="font-display text-xl leading-snug group-hover:text-madder">
+                  <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-2">
+                    <span className="min-w-0 font-display text-lg leading-snug [overflow-wrap:anywhere] group-hover:text-madder sm:text-xl">
                       {entry.question}
                     </span>
                     {entry.audio ? (
@@ -201,7 +204,7 @@ export function QuestionList({ entries }: { entries: Entry[] }) {
                   </span>
                 </summary>
 
-                <div className="mt-4 pl-8">
+                <div className="mt-4 min-w-0 sm:pl-8">
                   <div className="text-slate">
                     <Answer text={entry.answer} />
                   </div>
@@ -213,7 +216,7 @@ export function QuestionList({ entries }: { entries: Entry[] }) {
                         controls
                         preload="none"
                         src={entry.audio}
-                        className="mt-2 w-full"
+                        className="mt-2 block w-full max-w-full"
                       >
                         <a href={entry.audio}>Download the recording</a>
                       </audio>
