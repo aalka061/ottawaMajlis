@@ -15,7 +15,7 @@ Running cost: **$0/year**, plus a domain if you want one (~$12–15/year).
 | --- | --- |
 | `/` | The whole site: the open program, end to end, with the registration form |
 | `/programs/[slug]` | The same page for a program that is not the open one — a draft, or one that has closed. Kept out of search results; it is there so you can read a program before you open it |
-| `/questions` | Questions people have asked and the answers to them, and the form for asking one |
+| `/questions` | Questions people have asked and the answers to them, written and spoken, and the form for asking one |
 | `/admin` | The register: everyone who signed up, their status, your notes, the payment reminder and confirmation emails, CSV export, delete |
 | `/admin/questions` | Every question asked, unanswered first |
 | `/admin/questions/[id]` | Answering one of them |
@@ -417,6 +417,38 @@ there is nobody to write back to when it goes up.
 
 It is also how the page opens with something on it. An empty Q&A page reads as
 an abandoned one.
+
+### The answer in his own voice
+
+Under the answer box is a recorder. Press **Record an answer**, speak, press
+**Stop**, and the recording is played back before anything is kept — the first
+take of anything is a throat being cleared. **Keep this recording** puts it on
+the question; **Record again** starts over. There is a file picker beside it
+for a recording that already exists, including a voice note exported from
+WhatsApp, and a field for a link to one hosted somewhere else.
+
+A recording never replaces the written answer. Audio cannot be skimmed,
+searched, quoted, or heard by everyone, so the writing stays and the recording
+sits under it on the page. Five minutes is the cap, and the recorder stops
+itself there.
+
+Everything is converted to MP3 in the browser before it is kept. This is worth
+knowing, because it is the one thing that quietly breaks otherwise: browsers
+disagree about what they record. Safari produces MP4, Chrome and Firefox
+produce WebM/Opus, and an iPhone will not play the latter — which is also why a
+WhatsApp voice note, which is Opus, cannot simply be posted as it is. Encoding
+once, here, means one format that plays everywhere and no rule for anyone to
+remember.
+
+The file goes straight from the browser to Supabase Storage through a one-time
+signed URL, so it never travels through the server. The question stores the
+path, or the whole address when the recording is hosted elsewhere.
+
+**Setting up storage, once:** in Supabase → Storage, create a **public** bucket
+called `answers`. A 25 MB file limit is plenty — a five-minute answer is about
+2 MB. The free tier holds a gigabyte and serves 5 GB a month, which is roughly
+a thousand recordings and a few thousand listens. Uploads are signed by the
+server, so the bucket needs no policies of its own.
 
 ### Telling them it is answered
 

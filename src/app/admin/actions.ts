@@ -11,6 +11,7 @@ import {
 import {
   addPayment,
   createQuestion,
+  deleteAnswerRecording,
   deletePayment,
   deleteQuestion,
   deleteRegistration,
@@ -29,6 +30,7 @@ import {
   setNextPaymentDue,
   setProgramFields,
   setQuestionFields,
+  signAnswerUpload,
   setRegistrationStatus,
   totalsByRegistration,
   type ProgramEdit,
@@ -42,6 +44,7 @@ import {
   questionAnswered,
   sendEmail,
 } from "@/lib/email";
+import { isStoredHere } from "@/lib/audio";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/form-state";
 import {
   formatMoney,
@@ -1126,4 +1129,154 @@ export async function sendAnswerNotice(
     status: "ok",
     message: `Sent to ${question.asker_email}.`,
   };
+}
+
+/**
+ * Somewhere for the browser to put a recording.
+ *
+ * Called from the page itself rather than from a form, because what comes
+ * back is an address rather than a rendered answer. The signing happens here
+ * and not in the browser: it is the service key that mints these, and the
+ * service key never leaves the server.
+ */
+export async function startAnswerUpload(questionId: string) {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const question = await getQuestionById(questionId);
+  if (!question) {
+    return { error: "That question is no longer in the database." } as const;
+  }
+
+  try {
+    return await signAnswerUpload(questionId);
+  } catch (error) {
+    return {
+      error: `The upload could not be started: ${error instanceof Error ? error.message : "storage refused it"}.`,
+    } as const;
+  }
+}
+
+/**
+ * Keeps the recording that was just uploaded, and throws away the one it
+ * replaces.
+ *
+ * The path comes back from the browser, so it is checked rather than trusted:
+ * a signed URL was minted for this question's own folder, and anything else
+ * is somebody else's file.
+ */
+export async function keepAnswerRecording(questionId: string, path: string) {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  if (!path.startsWith(`${questionId}/`)) {
+    return { error: "That recording does not belong to this question." };
+  }
+
+  const question = await getQuestionById(questionId);
+  if (!question) {
+    return { error: "That question is no longer in the database." };
+  }
+
+  await setQuestionFields(questionId, { answer_audio: path });
+
+  // The one it replaced, if we were the ones keeping it. A link to somewhere
+  // else is not ours to delete.
+  const old = question.answer_audio;
+  if (isStoredHere(old) && old !== path) {
+    try {
+      await deleteAnswerRecording(old);
+    } catch {
+      // A file left behind is a file left behind. The question now points at
+      // the new one, which is the part that matters.
+    }
+  }
+
+  revalidatePath("/admin/questions");
+  revalidatePath(`/admin/questions/${questionId}`);
+  revalidatePath("/questions");
+
+  return { ok: true };
+}
+
+/**
+ * A recording that already lives somewhere else, by its address.
+ *
+ * It has to be a link to the file itself. A Google Drive or Dropbox share page
+ * is a page, not a recording, and a player pointed at one plays nothing —
+ * which is why what is not playable is offered as a plain link instead.
+ */
+export async function setAnswerAudioLink(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return EMPTY_FORM_STATE;
+
+  const link = text(formData, "answer_audio") ?? "";
+  if (link && !/^https?:\/\//i.test(link)) {
+    return {
+      status: "error",
+      message: "",
+      fieldErrors: {
+        answer_audio: "A web address, starting http:// or https://.",
+      },
+    };
+  }
+
+  const question = await getQuestionById(id);
+  if (!question) {
+    return {
+      ...EMPTY_FORM_STATE,
+      status: "error",
+      message: "That question is no longer in the database.",
+    };
+  }
+
+  await setQuestionFields(id, { answer_audio: link || null });
+
+  const old = question.answer_audio;
+  if (isStoredHere(old) && old !== link) {
+    try {
+      await deleteAnswerRecording(old);
+    } catch {
+      // As above: the question points where it should, which is the point.
+    }
+  }
+
+  revalidatePath("/admin/questions");
+  revalidatePath(`/admin/questions/${id}`);
+  revalidatePath("/questions");
+
+  return {
+    ...EMPTY_FORM_STATE,
+    status: "ok",
+    message: link ? "Linked." : "The recording is off the answer.",
+  };
+}
+
+/** Takes the recording off an answer, and out of the bucket if it was ours. */
+export async function clearAnswerAudio(formData: FormData) {
+  if (!(await isSignedIn())) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const question = await getQuestionById(id);
+  if (!question) return;
+
+  await setQuestionFields(id, { answer_audio: null });
+  if (isStoredHere(question.answer_audio)) {
+    try {
+      await deleteAnswerRecording(question.answer_audio);
+    } catch {
+      // Nothing points at it any more; a file left in the bucket is tidier to
+      // lose than a page pointing at one that is gone.
+    }
+  }
+
+  revalidatePath("/admin/questions");
+  revalidatePath(`/admin/questions/${id}`);
+  revalidatePath("/questions");
+  redirect(`/admin/questions/${id}`);
 }

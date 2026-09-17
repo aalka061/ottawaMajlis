@@ -1,13 +1,21 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isSignedIn } from "@/lib/auth";
+import { answerAudioUrl, isStoredHere } from "@/lib/audio";
 import { getQuestionById, listPrograms } from "@/lib/data";
 import { questionAnswered } from "@/lib/email";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { questionStatusLabel, type QuestionStatus } from "@/lib/types";
-import { removeQuestion, saveQuestion, sendAnswerNotice } from "../../actions";
+import {
+  clearAnswerAudio,
+  removeQuestion,
+  saveQuestion,
+  sendAnswerNotice,
+  setAnswerAudioLink,
+} from "../../actions";
 import { SendMailButton } from "../../SendMailButton";
-import { QuestionForm } from "../QuestionForm";
+import { AnswerRecorder } from "../AnswerRecorder";
+import { AudioLinkForm, QuestionForm } from "../QuestionForm";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +70,7 @@ export default async function AnswerQuestionPage({
 
   // The letter as it would go, for the "?" beside the button that sends it.
   const letter = questionAnswered(question);
+  const recording = answerAudioUrl(question.answer_audio);
   const canWriteBack =
     Boolean(question.asker_email) &&
     (question.status === "published" || question.status === "closed");
@@ -154,6 +163,50 @@ export default async function AnswerQuestionPage({
             action={saveQuestion}
           />
         </div>
+      )}
+
+      {confirmDelete ? null : (
+        <section className="mt-10 border border-line bg-paper p-6 sm:p-8">
+          <p className="field-label">The answer in his own voice</p>
+          <p className="mt-2 max-w-prose text-sm text-slate">
+            Optional, and never instead of the writing above: a recording
+            cannot be skimmed, searched, quoted, or heard by everyone, so the
+            written answer stands whether or not there is one. Record it here,
+            or bring one you already have.
+          </p>
+
+          {recording ? (
+            <div className="mt-6 border border-line bg-stone p-4">
+              <p className="field-label">On this answer now</p>
+              <audio controls src={recording} className="mt-3 w-full" />
+              <div className="mt-4 flex flex-wrap items-center gap-4">
+                <form action={clearAnswerAudio}>
+                  <input type="hidden" name="id" value={question.id} />
+                  <button type="submit" className="btn btn-quiet">
+                    Take it off
+                  </button>
+                </form>
+                <span className="font-mono text-[0.6875rem] tracking-[0.14em] text-slate uppercase">
+                  {isStoredHere(question.answer_audio)
+                    ? "Kept with us"
+                    : "Hosted elsewhere"}
+                </span>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="mt-6">
+            <AnswerRecorder questionId={question.id} />
+          </div>
+
+          <div className="mt-8 border-t border-line pt-6">
+            <AudioLinkForm
+              questionId={question.id}
+              value={isStoredHere(question.answer_audio) ? null : question.answer_audio}
+              action={setAnswerAudioLink}
+            />
+          </div>
+        </section>
       )}
 
       {canWriteBack && !confirmDelete ? (

@@ -293,3 +293,50 @@ export function NewQuestionForm({
     </form>
   );
 }
+
+/**
+ * A recording that already lives somewhere else, by its address.
+ *
+ * Its own small form rather than a field in the answer form above: the
+ * recorder beside it writes the same column, and two things writing one
+ * column through one form is how a saved page quietly undoes an upload.
+ */
+export function AudioLinkForm({
+  questionId,
+  value,
+  action,
+}: {
+  questionId: string;
+  value: string | null;
+  action: Action;
+}) {
+  const [state, formAction] = useActionState(action, EMPTY_FORM_STATE);
+
+  return (
+    <form action={formAction} className="grid gap-3">
+      <input type="hidden" name="id" value={questionId} />
+      <div>
+        <label className="field-label" htmlFor={`audio-link-${questionId}`}>
+          Or a link to one hosted elsewhere
+        </label>
+        <input
+          id={`audio-link-${questionId}`}
+          name="answer_audio"
+          defaultValue={value ?? ""}
+          placeholder="https://…/answer.mp3"
+          className="field-input mt-2"
+        />
+        <FieldError message={state.fieldErrors.answer_audio} />
+        <p className="mt-1.5 max-w-prose text-sm text-slate">
+          It has to point at the file itself. A Google Drive or Dropbox sharing
+          page is a page, not a recording, and a player pointed at one plays
+          nothing. Empty takes the recording off.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-4">
+        <Press intent="link" label="Save the link" />
+        <Message state={state} />
+      </div>
+    </form>
+  );
+}

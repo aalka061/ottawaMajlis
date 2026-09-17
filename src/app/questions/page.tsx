@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { answerAudioUrl } from "@/lib/audio";
 import { getPrograms, listPublishedQuestions } from "@/lib/data";
 import { AskForm } from "@/components/AskForm";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
@@ -48,6 +49,7 @@ function Answer({ text }: { text: string }) {
  */
 function Entry({ q, program }: { q: Question; program?: string }) {
   const asked = [program, q.session_note].filter(Boolean).join(" · ");
+  const recording = answerAudioUrl(q.answer_audio);
 
   return (
     <details className="group py-5">
@@ -64,6 +66,17 @@ function Entry({ q, program }: { q: Question; program?: string }) {
         <div className="text-slate">
           <Answer text={q.answer} />
         </div>
+        {/* The same answer spoken, where there is one. Under the writing
+            rather than above it: the writing is what can be skimmed, and it
+            is what someone who cannot hear the recording is left with. */}
+        {recording ? (
+          <div className="mt-5 border-y border-line py-4">
+            <p className="field-label">Heard instead</p>
+            <audio controls preload="none" src={recording} className="mt-2 w-full">
+              <a href={recording}>Download the recording</a>
+            </audio>
+          </div>
+        ) : null}
         <p className="mt-4 font-mono text-[0.6875rem] tracking-[0.14em] text-slate uppercase">
           {asked ? `${asked} · ` : ""}
           Answered {formatDate(q.published_at ?? q.created_at)}

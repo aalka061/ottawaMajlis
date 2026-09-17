@@ -1,6 +1,7 @@
 import "server-only";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import { SEED_PROGRAMS } from "./seed";
+import { ANSWER_BUCKET } from "./audio";
 import { sumAmounts } from "./money";
 import type {
   Payment,
@@ -475,4 +476,34 @@ export async function countQuestionsFrom(
     .gte("created_at", since.toISOString());
   if (error) throw new Error(error.message);
   return count ?? 0;
+}
+
+/**
+ * A one-time URL the browser can upload a recording to, and the path it will
+ * land at.
+ *
+ * The file never travels through this server. A server action carries a small
+ * body by default, an answer is megabytes, and passing it through would mean
+ * holding the whole thing in memory on the way past for no reason: the browser
+ * has the file, Supabase can take it, and all this has to do is say where.
+ *
+ * A new name every time, under the question's own folder. A recording replaced
+ * while someone is listening should not be served from a cache still holding
+ * the old one, and the folder is what lets a delete be sure whose file it is.
+ */
+export async function signAnswerUpload(
+  questionId: string,
+): Promise<{ path: string; url: string }> {
+  const path = `${questionId}/${Date.now()}.mp3`;
+  const { data, error } = await supabase()
+    .storage.from(ANSWER_BUCKET)
+    .createSignedUploadUrl(path);
+  if (error) throw new Error(error.message);
+  return { path, url: data.signedUrl };
+}
+
+/** Takes a recording out of the bucket. Only ever one of our own paths. */
+export async function deleteAnswerRecording(path: string) {
+  const { error } = await supabase().storage.from(ANSWER_BUCKET).remove([path]);
+  if (error) throw new Error(error.message);
 }
