@@ -895,10 +895,24 @@ export async function saveQuestion(
   const programId =
     programRaw === null ? undefined : String(programRaw).trim() || null;
 
+  // What this press leaves on the site. A save on something already published
+  // leaves it published, which is why an empty answer has to be refused here
+  // and not only on the press that puts it up: a question on the site with a
+  // recording and nothing in writing is one nobody can skim, search, or read
+  // who cannot hear it.
+  const willBePublic =
+    intent === "publish" ||
+    (existing.status === "published" &&
+      intent !== "unpublish" &&
+      intent !== "private");
+
   const fieldErrors: Record<string, string> = {};
   if (!question) fieldErrors.question = "A question needs its words.";
-  if (intent === "publish" && !answer) {
-    fieldErrors.answer = "Nothing to publish yet — the answer is empty.";
+  if (willBePublic && !answer) {
+    fieldErrors.answer =
+      intent === "publish"
+        ? "Nothing to publish yet — the answer is empty."
+        : "This answer is on the site, so it cannot be left with nothing in writing. Write it, or take it off the site first.";
   }
   if (Object.keys(fieldErrors).length > 0) {
     return {

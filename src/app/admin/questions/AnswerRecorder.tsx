@@ -81,7 +81,14 @@ type Stage = "idle" | "recording" | "working" | "ready" | "saving";
  * kept or dropped, because the first take of anything is a throat being
  * cleared.
  */
-export function AnswerRecorder({ questionId }: { questionId: string }) {
+export function AnswerRecorder({
+  questionId,
+  onKept,
+}: {
+  questionId: string;
+  /** Called once a recording is kept, so the flow can ask for the gist. */
+  onKept?: () => void;
+}) {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>("idle");
   const [seconds, setSeconds] = useState(0);
@@ -197,6 +204,7 @@ export function AnswerRecorder({ questionId }: { questionId: string }) {
       dropTake();
       setStage("idle");
       router.refresh();
+      onKept?.();
     } catch (problem) {
       setStage("ready");
       setError(
