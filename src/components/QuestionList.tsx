@@ -173,12 +173,17 @@ export function QuestionList({ entries }: { entries: Entry[] }) {
                 key={entry.id}
                 id={`q-${entry.id}`}
                 open={open}
-                onToggle={(event) =>
-                  setOpened((was) => ({
-                    ...was,
-                    [entry.id]: event.currentTarget.open,
-                  }))
-                }
+                onToggle={(event) => {
+                  // Read now, not inside the updater: React clears an event's
+                  // currentTarget once the handler returns, and a functional
+                  // update runs later, on the next render.
+                  const isOpen = (event.target as HTMLDetailsElement).open;
+                  setOpened((was) =>
+                    was[entry.id] === isOpen
+                      ? was
+                      : { ...was, [entry.id]: isOpen },
+                  );
+                }}
                 className="group scroll-mt-24 py-5"
               >
                 <summary className="flex cursor-pointer list-none items-baseline gap-4 select-none [&::-webkit-details-marker]:hidden">
