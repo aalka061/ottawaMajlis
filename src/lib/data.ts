@@ -5,6 +5,7 @@ import { sumAmounts } from "./money";
 import type {
   Payment,
   Program,
+  Question,
   Registration,
   RegistrationStatus,
 } from "./types";
@@ -316,4 +317,162 @@ export function totalsByRegistration(payments: Payment[]): Map<string, number> {
     byRow.set(p.registration_id, amounts);
   }
   return new Map([...byRow].map(([id, amounts]) => [id, sumAmounts(amounts)]));
+}
+
+/**
+ * The questions on the site: answered, published, newest first.
+ *
+ * Without a database this is empty rather than seeded. The programs have seed
+ * rows so the site can be read before Supabase is connected; questions are
+ * what people actually asked, and inventing a few would put words in their
+ * mouths on a public page.
+ */
+export async function listPublishedQuestions(): Promise<Question[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase()
+    .from("questions")
+    .select("*")
+    .eq("status", "published")
+    .order("published_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Question[];
+}
+
+/** Every question, answered or not, newest first. For the register only. */
+export async function listQuestions(): Promise<Question[]> {
+  const { data, error } = await supabase()
+    .from("questions")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Question[];
+}
+
+export async function getQuestionById(id: string): Promise<Question | null> {
+  const { data, error } = await supabase()
+    .from("questions")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as Question) ?? null;
+}
+
+export type NewQuestion = {
+  asker_email: string | null;
+  asker_name: string | null;
+  program_id: string | null;
+  session_note: string | null;
+  asked: string;
+  /**
+   * What the page will show. The form leaves it as a copy of `asked` for
+   * editing before it is published; a question entered in the register is
+   * already in its public wording and writes the same text into both.
+   */
+  question: string;
+  notify: boolean;
+};
+
+export async function createQuestion(input: NewQuestion): Promise<Question> {
+  const { data, error } = await supabase()
+    .from("questions")
+    .insert(input)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data as Question;
+}
+
+/** The fields the register can write. Who asked and when are not among them. */
+export type QuestionEdit = Pick<
+  Question,
+  | "program_id"
+  | "session_note"
+  | "question"
+  | "answer"
+  | "answer_audio"
+  | "status"
+  | "answered_at"
+  | "published_at"
+>;
+
+/**
+ * Writes only the fields the caller passed, like `setProgramFields`: a field
+ * left undefined is not touched, so a form that never posted one cannot blank
+ * the column behind the editor's back. Null is a value here and does clear —
+ * that is how a question is taken off the site.
+ */
+export async function setQuestionFields(
+  id: string,
+  fields: Partial<QuestionEdit>,
+) {
+  const present = Object.fromEntries(
+    Object.entries(fields).filter(([, value]) => value !== undefined),
+  );
+  if (Object.keys(present).length === 0) return;
+  const { error } = await supabase()
+    .from("questions")
+    .update(present)
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Records that we told them their question is answered, now. Called only
+ * after the send itself has succeeded, like every other letter here.
+ */
+export async function markQuestionNotified(id: string) {
+  const { error } = await supabase()
+    .from("questions")
+    .update({ notified_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteQuestion(id: string) {
+  const { error } = await supabase().from("questions").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Every registration on one email address, newest first.
+ *
+ * This is what the Q&A form checks: asking is open to people on the register,
+ * and the address they registered with is the whole of the check. Matched on
+ * the lowercased address, which is how the site stores it and what the unique
+ * index on the table is built from.
+ *
+ * Deliberately `eq` rather than `ilike`: in a filter, a `%` in what someone
+ * typed is a wildcard, and `%@%` would match the first registration in the
+ * table and hand them somebody else's name.
+ */
+export async function findRegistrationsByEmail(
+  email: string,
+): Promise<Registration[]> {
+  const { data, error } = await supabase()
+    .from("registrations")
+    .select("*")
+    .eq("email", email.trim().toLowerCase())
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Registration[];
+}
+
+/**
+ * How many questions this address has asked since a given moment. The form
+ * uses it to cap a day's asking: the register is a short list of people, but
+ * a form is a form, and one person having a bad night should not be able to
+ * bury the term's questions under a hundred of their own.
+ */
+export async function countQuestionsFrom(
+  email: string,
+  since: Date,
+): Promise<number> {
+  const { count, error } = await supabase()
+    .from("questions")
+    .select("id", { count: "exact", head: true })
+    .eq("asker_email", email.trim().toLowerCase())
+    .gte("created_at", since.toISOString());
+  if (error) throw new Error(error.message);
+  return count ?? 0;
 }

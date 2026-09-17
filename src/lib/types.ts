@@ -140,6 +140,88 @@ export type Registration = {
 };
 
 /**
+ * Where a question stands. Four, because asking and answering really does have
+ * four endings: it arrived, it is written but not up yet, it is on the page,
+ * and it was answered but is not going up — a private matter, or one answered
+ * to the person alone. Taking something down is a move back to `answered`.
+ */
+export type QuestionStatus = "new" | "answered" | "published" | "closed";
+
+export const QUESTION_STATUS_ORDER: QuestionStatus[] = [
+  "new",
+  "answered",
+  "published",
+  "closed",
+];
+
+export const QUESTION_STATUS_LABEL: Record<QuestionStatus, string> = {
+  new: "Waiting for an answer",
+  answered: "Answered — not on the site",
+  published: "On the site",
+  closed: "Answered privately",
+};
+
+/**
+ * One question and its answer.
+ *
+ * The row carries two sides of the same thing. The private side — who asked,
+ * and `asked`, their words as they wrote them — stays in the register. The
+ * public side — `question`, `answer`, and the recording — is what the site
+ * shows, and only once the status says published.
+ */
+export type Question = {
+  id: string;
+  created_at: string;
+  /**
+   * Who asked, taken from their registration when they asked through the
+   * form. Null for a question entered in the register: one asked out loud
+   * after a session, or sent in by someone not on the register at all.
+   * Never shown on the site either way — an answer is published without a
+   * name on it.
+   */
+  asker_email: string | null;
+  asker_name: string | null;
+  /** Their program, from their registration. Null for one tied to no term. */
+  program_id: string | null;
+  /**
+   * Which session it came out of, as someone would say it: "Session 4", "the
+   * in-person one". Free text, and optional — there is no sessions table to
+   * point at, and this is a note rather than a record.
+   */
+  session_note: string | null;
+  /** Their words, as submitted. Read in the register, never on the site. */
+  asked: string;
+  /**
+   * The question as it goes on the page. Starts as a copy of `asked` and is
+   * edited before publishing, because a question asked about one person's own
+   * situation reads as a general ruling to whoever finds it next.
+   */
+  question: string;
+  /**
+   * The answer in writing. Where there is a recording this is the gist of it,
+   * in two or three lines, and it is still required: audio cannot be skimmed,
+   * searched, quoted, or heard by everyone.
+   */
+  answer: string;
+  /** The recording in storage, null when the answer is written only. */
+  answer_audio: string | null;
+  status: QuestionStatus;
+  /** Whether they asked to be told when it is answered. */
+  notify: boolean;
+  /** When they were told, null until a button was pressed to tell them. */
+  notified_at: string | null;
+  answered_at: string | null;
+  published_at: string | null;
+};
+
+/** Tolerates a row written before a status was retired. */
+export function questionStatusLabel(status: string): string {
+  return (
+    QUESTION_STATUS_LABEL[status as QuestionStatus] ?? "Waiting for an answer"
+  );
+}
+
+/**
  * One transfer that arrived. A fee settled in instalments is a list of these
  * rather than a running total: the total cannot say when the money came, and
  * a total typed over itself loses what it replaced.

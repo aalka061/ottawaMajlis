@@ -84,6 +84,59 @@ create table if not exists payments (
 create index if not exists payments_registration_idx
   on payments (registration_id, received_on);
 
+-- Questions and answers. People ask through the Q&A page, checked against the
+-- email they registered with, and an answer appears there once it is written
+-- and published. The archive is the point: the same questions come round every
+-- term, and one answered in writing should not have to be asked again.
+--
+-- One table carries both sides. The private side — who asked, and their words
+-- as they wrote them — never leaves the register. The public side is what is
+-- published: the question in its general form, and the answer.
+create table if not exists questions (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  -- Who asked, from their registration. Private, always: a question is
+  -- published without a name on it. Null when nobody asked — a question
+  -- entered here because it was asked out loud, or came in by email from
+  -- someone not on the register.
+  asker_email text,
+  asker_name text,
+  -- Their program, filled in from their registration rather than asked for.
+  -- Set null rather than cascading: the term ending is not a reason to lose
+  -- the question.
+  program_id uuid references programs (id) on delete set null,
+  -- Which session it came out of, if they said. Free text — sessions are not
+  -- records here, and a line anyone can write beats a number nothing checks.
+  session_note text,
+  -- Their words, as submitted. Never shown on the site, and never overwritten
+  -- by the public wording, so what was asked can always be read back.
+  asked text not null default '',
+  -- The question as it appears on the page: the same question with what was
+  -- personal taken out. A question asked about one person's situation reads as
+  -- a general ruling to the next person.
+  question text not null default '',
+  -- The written answer, or — with a recording — the two or three lines that
+  -- say what the recording says. Required either way: audio cannot be skimmed,
+  -- searched, quoted, or read by someone who cannot hear it.
+  answer text not null default '',
+  answer_audio text,
+  -- new: arrived, unanswered. answered: written, not on the site.
+  -- published: on the site. closed: answered privately, or not one to publish.
+  status text not null default 'new'
+    check (status in ('new', 'answered', 'published', 'closed')),
+  -- Whether they asked to be told when it is answered. The telling is still a
+  -- button someone presses, like every other letter here.
+  notify boolean not null default false,
+  notified_at timestamptz,
+  answered_at timestamptz,
+  published_at timestamptz
+);
+
+-- The public page reads the published ones, newest first, and nothing else.
+create index if not exists questions_published_idx
+  on questions (published_at desc)
+  where status = 'published';
+
 -- One registration per person per program.
 create unique index if not exists registrations_program_email_idx
   on registrations (program_id, lower(email));
@@ -93,6 +146,7 @@ create index if not exists registrations_status_idx on registrations (status);
 alter table programs enable row level security;
 alter table registrations enable row level security;
 alter table payments enable row level security;
+alter table questions enable row level security;
 
 -- Mapping the Divine. Edit the text here or in the Supabase table editor.
 -- The dates and location are placeholders — fill them in. Capacity is an
